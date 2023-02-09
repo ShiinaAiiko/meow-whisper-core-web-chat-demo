@@ -77,7 +77,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 	}
 	static cache = cacheInit.call(this)
 
-	timeConfig = {
+	static timeConfig = {
 		centerTimeMomentConfig: {
 			sameDay: '[Today] HH:mm:ss',
 			nextDay: '[Tomorrow] HH:mm:ss',
@@ -183,10 +183,15 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					// const userKey = store.state.storage.ws.getSync('ec-userKey')
 					const urls = ['/encryption/exchangeKey', '/sso']
 					console.log('config.url', config.url)
-					let { aesKey, userKey } = await this.encryption.getAndInitAesKey(
-						urls.filter((v) => config.url && config.url.indexOf(v) >= 0)
-							?.length === 0
-					)
+					let { aesKey, userKey } = this.userInfo.token
+						? await this.encryption.getAndInitAesKey(
+								urls.filter((v) => config.url && config.url.indexOf(v) >= 0)
+									?.length === 0
+						  )
+						: {
+								aesKey: '',
+								userKey: '',
+						  }
 
 					// console.log(
 					// 	'ec-aesKey',
@@ -336,7 +341,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 		this.encryption.clear()
 		this.nsocketio.disconnect()
 	}
-	methods = {
+	static methods = {
 		formatSimpleAnonymousUserInfo: (
 			v: protoRoot.user.ISimpleAnonymousUserInfo | null | undefined
 		) => {
@@ -376,12 +381,12 @@ export class MeowWhisperCoreSDK extends NEventListener<
 			}
 			return v
 		},
-		getRoomId: (...ids: string[]) => {
-			ids.sort((a, b) => {
-				return compareUnicodeOrder(a, b)
-			})
-			return md5(this.appId + ids.join(''))
-		},
+		// getRoomId: (...ids: string[]) => {
+		// 	ids.sort((a, b) => {
+		// 		return compareUnicodeOrder(a, b)
+		// 	})
+		// 	return md5(this.appId + ids.join(''))
+		// },
 		formatCallTypeText: (type: 'Audio' | 'Video' | 'ScreenShare') => {
 			// console.log("formatCallTypeText", type);
 			switch (type) {
@@ -464,17 +469,21 @@ export class MeowWhisperCoreSDK extends NEventListener<
 		getLastMessageTime: (time: number) => {
 			// 暂定仅文本
 			// moment()
-			return moment(time * 1000).calendar(
-				this.timeConfig.dialogTimeMomentConfig
-			)
+			return time
+				? moment(time * 1000).calendar(
+						MeowWhisperCoreSDK.timeConfig.dialogTimeMomentConfig
+				  )
+				: ''
 		},
 		getLastSeenTime: (time: number) => {
 			// 暂定仅文本
 			// moment()
 
-			return moment(time * 1000).calendar(
-				this.timeConfig.lastSeenTimeMomentConfig
-			)
+			return time
+				? moment(time * 1000).calendar(
+						MeowWhisperCoreSDK.timeConfig.lastSeenTimeMomentConfig
+				  )
+				: ''
 		},
 		getType: (id: string): 'Contact' | 'Group' => {
 			// 暂定仅文本
@@ -610,7 +619,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					)
 					if (res.code === 200) {
 						res.data.list?.map((v) =>
-							this.methods.formatSimpleAnonymousUserInfo(v)
+							MeowWhisperCoreSDK.methods.formatSimpleAnonymousUserInfo(v)
 						)
 					}
 					return res
@@ -668,7 +677,9 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					)
 					console.log('res', deepCopy(res))
 					if (res.code === 200) {
-						res.data.list?.map((v) => this.methods.formatContact(v))
+						res.data.list?.map((v) =>
+							MeowWhisperCoreSDK.methods.formatContact(v)
+						)
 					}
 					return res
 				},
@@ -753,7 +764,9 @@ export class MeowWhisperCoreSDK extends NEventListener<
 						protoRoot.group.GetGroupMembers.Response
 					)
 					if (res.code === 200) {
-						res.data.list?.map((v) => this.methods.formatGroupMembers(v))
+						res.data.list?.map((v) =>
+							MeowWhisperCoreSDK.methods.formatGroupMembers(v)
+						)
 					}
 					return res
 				},

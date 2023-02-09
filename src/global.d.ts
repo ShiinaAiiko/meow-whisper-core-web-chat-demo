@@ -67,7 +67,7 @@ declare global {
 			'saki-chat-reply': any
 			'saki-chat-edit': any
 			'saki-chat-bubble-reply': any
-			'saki-base-style': any
+      'saki-base-style': any
 		}
 	}
 	namespace Window {

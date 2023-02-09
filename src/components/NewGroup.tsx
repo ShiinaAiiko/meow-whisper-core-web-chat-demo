@@ -20,6 +20,7 @@ import { validation } from '@nyanyajs/utils'
 import { protoRoot } from '../protos'
 import { FriendItem } from '../store/contacts'
 import SelectMembersComponent from './SelectMembers'
+import MeowWhisperCoreSDK from '../modules/MeowWhisperCoreSDK'
 
 const NewGroupComponent = ({
 	visible,
@@ -131,7 +132,7 @@ const NewGroupComponent = ({
 									nickname: v.userInfo?.nickname || '',
 									bio:
 										(v?.lastSeenTime || 0) > 0
-											? mwc.sdk?.methods.getLastSeenTime(
+											? MeowWhisperCoreSDK.methods.getLastSeenTime(
 													Number(v.lastSeenTime)
 											  ) || ''
 											: '',

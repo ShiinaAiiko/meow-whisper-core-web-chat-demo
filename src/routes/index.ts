@@ -2,12 +2,14 @@ import ChatPage from '../pages/Index'
 import ContactsPage from '../pages/Contacts'
 import NotificationsPage from '../pages/Notifications'
 import SettingsPage from '../pages/Settings'
+import InvitePage from '../pages/Invite'
 // import Child from '../pages/child'
 // import Login from '../pages/login'
 // import Community from '../pages/community'
 // import Search from '../pages/search'
 
 import ChatLayout from '../layouts/Chat'
+import BaseLayout from '../layouts/Base'
 import { Routers } from '../modules/renderRoutes'
 
 // 最多只能四级嵌套路由
@@ -74,6 +76,14 @@ const routes: Routers[] = [
 		exact: true,
 		layout: ChatLayout,
 		component: SettingsPage,
+		// redirect: '/index',
+	},
+	{
+		path: '/invite/:id',
+		title: '通知',
+		exact: true,
+		layout: BaseLayout,
+		component: InvitePage,
 		// redirect: '/index',
 	},
 ]

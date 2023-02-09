@@ -25,6 +25,7 @@ import SelectMembersComponent from './SelectMembers'
 import { getDialogueInfo, Query } from '../modules/methods'
 import md5 from 'blueimp-md5'
 import { MessageItem } from '../store/messages'
+import MeowWhisperCoreSDK from '../modules/MeowWhisperCoreSDK'
 
 const MessageContainerComponent = ({
 	index,
@@ -359,10 +360,10 @@ const MessageContainerComponent = ({
 										: messages.activeRoomInfo?.type === 'Contact'
 										? bio ||
 										  (Number(messages.activeRoomInfo?.lastSeenTime) >= 0
-												? mwc.sdk?.methods.getLastSeenTime(
+												? MeowWhisperCoreSDK.methods.getLastSeenTime(
 														Number(messages.activeRoomInfo?.lastSeenTime)
 												  ) || ''
-												: '')
+												: 'a')
 										: ''
 								}
 							>
@@ -801,7 +802,7 @@ const MessageContainerComponent = ({
 													call-time={v.call?.time || ''}
 													call-status={v.call?.status || ''}
 													read-progress={
-														mwc.sdk?.methods.getType(v.roomId || '') ===
+														MeowWhisperCoreSDK.methods.getType(v.roomId || '') ===
 														'Contact'
 															? (v?.readUsers?.length || 0) / 1
 															: (v?.readUsers?.length || 0) /
@@ -1219,7 +1220,7 @@ const MessageContainerComponent = ({
 												nickname: v.userInfo?.nickname || '',
 												bio:
 													(v?.lastSeenTime || 0) > 0
-														? mwc.sdk?.methods.getLastSeenTime(
+														?MeowWhisperCoreSDK.methods.getLastSeenTime(
 																Number(v.lastSeenTime)
 														  ) || ''
 														: '',
@@ -1311,7 +1312,7 @@ const MessageContainerComponent = ({
 											nickname: u.userInfo?.nickname || '',
 											bio:
 												(u?.lastSeenTime || 0) > 0
-													? mwc.sdk?.methods.getLastSeenTime(
+													? MeowWhisperCoreSDK.methods.getLastSeenTime(
 															Number(u.lastSeenTime)
 													  ) || ''
 													: '',

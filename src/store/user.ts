@@ -41,7 +41,7 @@ export const userMethods = {
 		const { user, config, sso } = thunkAPI.getState()
 		const token = await storage.global.get('token')
 		const deviceId = await storage.global.get('deviceId')
-		const userInfo = await storage.global.get('userInfo')
+    const userInfo = await storage.global.get('userInfo')
 		if (token) {
 			await thunkAPI.dispatch(
 				userMethods.login({

@@ -13,6 +13,7 @@ const resources = {
 			quitModalContent: '确定想退出主程序?',
 
 			logout: '注销',
+			login: '登录',
 			cancel: '取消',
 			add: '添加',
 			create: '创建',
@@ -128,6 +129,7 @@ const resources = {
 			quitModalContent: '確定想退出主程序?',
 
 			logout: '登出',
+			login: '登錄',
 			cancel: '取消',
 			add: '添加',
 			create: '創建',
@@ -243,6 +245,7 @@ const resources = {
 			quitModalContent: 'Are you sure you want to exit the main program?',
 
 			logout: 'Logout',
+			login: 'Login',
 			cancel: 'Cancel',
 			add: 'Add',
 			create: 'Create',

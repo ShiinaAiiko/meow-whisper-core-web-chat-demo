@@ -474,7 +474,7 @@ export const messagesMethods = {
 		}
 		if (activeRoomInfo.type === 'Contact') {
 			const uinfo = mwc.cache.userInfo.get(activeRoomInfo.id || '')
-			activeRoomInfo.lastSeenTime = Number(uinfo.lastSeenTime) || -1
+			activeRoomInfo.lastSeenTime = Number(uinfo.userInfo?.lastSeenTime) || -1
 		}
 		if (activeRoomInfo.type === 'Group') {
 			const ginfo = mwc.cache.group.get(activeRoomInfo.id || '')
@@ -682,7 +682,7 @@ export const messagesMethods = {
 		) => {
 			const { mwc, user, group, messages } = thunkAPI.getState()
 
-			const type = mwc.sdk?.methods.getType(roomId)
+			const type = MeowWhisperCoreSDK.methods.getType(roomId)
 			if (mwc.nsocketioStatus !== 'connected') {
 				console.log('连接失败')
 				return
@@ -786,7 +786,7 @@ export const messagesMethods = {
 		) => {
 			const { mwc, user, group } = thunkAPI.getState()
 
-			const type = mwc.sdk?.methods.getType(roomId)
+			const type = MeowWhisperCoreSDK.methods.getType(roomId)
 
 			if (!thunkAPI.getState().messages.messagesMap[roomId]) {
 				thunkAPI.dispatch(

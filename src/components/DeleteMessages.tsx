@@ -18,6 +18,7 @@ import { prompt, alert, snackbar } from '@saki-ui/core'
 import { eventTarget } from '../store/config'
 import { SyncOff } from './Icon'
 import { protoRoot } from '../protos'
+import MeowWhisperCoreSDK from '../modules/MeowWhisperCoreSDK'
 
 const DeleteMessagesComponent = () => {
 	const { t, i18n } = useTranslation('index-header')
@@ -84,7 +85,7 @@ const DeleteMessagesComponent = () => {
 								<saki-checkbox-item padding='0 4px' value='AllUser'>
 									<span>
 										同时为
-										{mwc.sdk?.methods.getType(
+										{MeowWhisperCoreSDK.methods.getType(
 											messages.deleteMessage.roomId || ''
 										) === 'Contact'
 											? '好友'

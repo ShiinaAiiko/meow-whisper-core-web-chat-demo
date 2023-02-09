@@ -78,7 +78,7 @@ const ChatLayout = ({ children }: RouterProps) => {
 			await dispatch(methods.sso.Init()).unwrap()
 			await dispatch(methods.user.checkToken()).unwrap()
 			// dispatch(methods.appearance.Init()).unwrap()
-			console.log('location', location)
+			// console.log('location', location)
 			// console.log('config.deviceType getDeviceType', config)
 		}, 0)
 
@@ -221,7 +221,6 @@ const ChatLayout = ({ children }: RouterProps) => {
 			</Helmet>
 			<div className='chat-layout'>
 				{/* <saki-base-style /> */}
-				<Login />
 				<saki-init
 					ref={bindEvent({
 						mounted(e) {
@@ -467,7 +466,9 @@ const ChatLayout = ({ children }: RouterProps) => {
 											padding='8px 18px'
 											type='Primary'
 										>
-											Login
+											{t('login', {
+												ns: 'common',
+											})}
 										</saki-button>
 									</div>
 								) : (
@@ -477,10 +478,11 @@ const ChatLayout = ({ children }: RouterProps) => {
 						</saki-chat-layout>
 					</div>
 					<SettingsComponent></SettingsComponent>
-					<UserLoginComponent></UserLoginComponent>
+					{/* <UserLoginComponent></UserLoginComponent> */}
 					<GroupInfoComponent></GroupInfoComponent>
 					<UserInfoComponent></UserInfoComponent>
 					<CallComponent></CallComponent>
+					<Login />
 				</>
 			</div>
 		</>

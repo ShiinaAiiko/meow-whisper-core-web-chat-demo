@@ -857,7 +857,7 @@ export const callMethods = {
 				const info = mwc.cache.userInfo.get(authorId)
 				let title = ''
 				let content = ''
-				switch (mwc.sdk?.methods.getType(roomId)) {
+				switch (MeowWhisperCoreSDK.methods.getType(roomId)) {
 					case 'Contact':
 						title = type + '邀请'
 						content = info.userInfo?.nickname + '发起了一个' + type

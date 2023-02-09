@@ -20,6 +20,8 @@ import { room } from '../../protos/proto'
 import { snackbar } from '@saki-ui/core'
 import { callAlert, setCallAlert } from '../../store/call'
 import { getDialogueInfo } from '../methods'
+import MeowWhisperCoreSDK from '../MeowWhisperCoreSDK'
+
 // import { e2eeDecryption } from './common'
 // import { getDialogRoomUsers } from '../../store/modules/chat/methods'
 
@@ -52,7 +54,7 @@ export const createSocketioRouter = {
 						store.dispatch(
 							messagesSlice.actions.initMessageMap({
 								roomId,
-								type: mwc.sdk?.methods.getType(roomId) as any,
+								type: MeowWhisperCoreSDK.methods.getType(roomId) as any,
 							})
 						)
 					}
@@ -70,7 +72,7 @@ export const createSocketioRouter = {
 					await store.dispatch(
 						methods.messages.setChatDialogue({
 							roomId,
-							type: mwc.sdk?.methods.getType(m?.roomId || 'G') as any,
+							type: MeowWhisperCoreSDK.methods.getType(m?.roomId || 'G') as any,
 							id: m?.authorId || '',
 							showMessageContainer: true,
 							unreadMessageCount: -1,
@@ -119,7 +121,7 @@ export const createSocketioRouter = {
 								body:
 									userInfo.userInfo?.nickname +
 									':' +
-									mwc?.sdk?.methods?.getLastMessage(
+									MeowWhisperCoreSDK.methods.getLastMessage(
 										m,
 										m?.authorId === user.userInfo.uid
 									),

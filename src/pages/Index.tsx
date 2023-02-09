@@ -27,6 +27,7 @@ import { contact } from '../protos/proto'
 import MessageContainerComponent from '../components/MessageContainer'
 import DeleteMessagesComponent from '../components/DeleteMessages'
 import { getDialogueInfo, Query } from '../modules/methods'
+import MeowWhisperCoreSDK from '../modules/MeowWhisperCoreSDK'
 
 const ChatPage = ({ children }: RouterProps) => {
 	const { t, i18n } = useTranslation('ChatPage')
@@ -198,14 +199,16 @@ const ChatPage = ({ children }: RouterProps) => {
 										avatar={info.avatar}
 										count={v.unreadMessageCount}
 										last-message-time={
-											mwc.sdk?.methods.getLastMessageTime(
+											MeowWhisperCoreSDK.methods.getLastMessageTime(
 												Number(v.lastMessageTime)
 											) || ''
 										}
 										last-message={
 											v.typingMessage
 												? 'Draft: ' + v.typingMessage
-												: mwc.sdk?.methods.getLastMessage(v.lastMessage)
+												: MeowWhisperCoreSDK.methods.getLastMessage(
+														v.lastMessage
+												  )
 										}
 									></saki-chat-dialog>
 								) : (
