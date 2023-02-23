@@ -110,8 +110,8 @@ el:icon() {
 }
 
 el:build() {
-  # el:icon
-  yarn el:icon
+  el:icon
+  # yarn el:icon
 
   cp -r $DIR/$electronConfigFilePath $DIR/src/config.temp.json
   yarn build_to_el

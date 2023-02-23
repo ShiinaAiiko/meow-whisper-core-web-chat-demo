@@ -33,7 +33,6 @@ config*.json
 /src/protos/*.js
 /src/protos/*.d.ts
 /protos_temp
-/public/icons
 /public/saki-ui
 
 .npmrc
