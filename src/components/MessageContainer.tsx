@@ -64,7 +64,6 @@ const MessageContainerComponent = ({
 	)
 	const group = useSelector((state: RootState) => state.group)
 
-	
 	const appStatus = useSelector((state: RootState) => state.config.status)
 	const user = useSelector((state: RootState) => state.user)
 	const emoji = useSelector((state: RootState) => state.emoji)
@@ -1038,7 +1037,7 @@ const MessageContainerComponent = ({
 								}}
 								className='message-m-bottom'
 							>
-								{mapValue.newMessage ? (
+								{mapValue?.newMessage ? (
 									<div className='bottom-new-message'></div>
 								) : (
 									''
@@ -1349,7 +1348,7 @@ const MessageContainerComponent = ({
 												},
 												(e) => {
 													richtextEl.current = e
-													richtextEl.current?.setToolbar({
+													richtextEl.current?.setToolbar?.({
 														container: [],
 													})
 												}

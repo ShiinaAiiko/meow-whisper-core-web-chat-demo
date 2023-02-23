@@ -6,8 +6,8 @@ version=1.0.0
 branch="main"
 # configFilePath="config.dev.json"
 webConfigFilePath="config.pro.web.json"
-electronConfigFilePath="config.test.json"
-# electronConfigFilePath="config.pro.electron.json"
+# electronConfigFilePath="config.test.json"
+electronConfigFilePath="config.pro.electron.json"
 registryUrl="https://registry.npmmirror.com/"
 DIR=$(cd $(dirname $0) && pwd)
 allowMethods=("dockerlogs el:icon el:install el:run el:build push run protos stop npmconfig install gitpull dockerremove start logs")
@@ -110,7 +110,7 @@ el:icon() {
 }
 
 el:build() {
-  el:icon
+  # el:icon
   # yarn el:icon
 
   cp -r $DIR/$electronConfigFilePath $DIR/src/config.temp.json
@@ -133,7 +133,7 @@ el:build() {
   rm -rf ./el-build/*.deb
   rm -rf ./el-build/*.exe
   yarn el:build-win
-  # yarn el:build-linux
+  yarn el:build-linux
   rm -rf ./build
 
   # Meow Sticky Note Setup 1.0.1.exe
