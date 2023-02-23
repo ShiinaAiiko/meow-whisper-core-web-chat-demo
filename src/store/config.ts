@@ -39,11 +39,11 @@ export const configMethods = {
 			)
 		)
 
-		console.log(
-			"await storage.global.get('automaticallyStart')",
-			storage,
-			await storage.global.get('automaticallyStart')
-		)
+		// console.log(
+		// 	"await storage.global.get('automaticallyStart')",
+		// 	storage,
+		// 	await storage.global.get('automaticallyStart')
+		// )
 		thunkAPI.dispatch(
 			configSlice.actions.setAutomaticallyStart(
 				(await storage.global.get('automaticallyStart')) === 'true'

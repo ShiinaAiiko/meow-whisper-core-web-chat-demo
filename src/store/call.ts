@@ -1044,17 +1044,29 @@ export const callMethods = {
 		async ({ roomId, callToken, type, turnServer, participants }, thunkAPI) => {
 			const { mwc, call, user, config, group, messages } = thunkAPI.getState()
 
-			if (callAlert || call.status === 0) {
-				if (call.status === 0) {
+			if (call.enable || callAlert || call.status === 0) {
+				// if (callAlert || call.status === 0) {
+				// 	return
+				// }
+				// console.log(call?.options?.roomId, roomId)
+				if (call?.options?.roomId === roomId && call.status !== 0) {
+					thunkAPI.dispatch(
+						callSlice.actions.setCallTokenInfo({
+							callToken,
+							turnServer,
+						})
+					)
 				}
-				snackbar({
-					message: '有一个新的电话',
-					autoHideDuration: 2000,
-					vertical: 'top',
-					horizontal: 'center',
-					backgroundColor: 'var(--saki-default-color)',
-					color: '#fff',
-				}).open()
+				if (!callAlert && call?.options?.roomId !== roomId) {
+					snackbar({
+						message: '有一个新的电话',
+						autoHideDuration: 2000,
+						vertical: 'top',
+						horizontal: 'center',
+						backgroundColor: 'var(--saki-default-color)',
+						color: '#fff',
+					}).open()
+				}
 				// 未来这里要发请求，告诉对方挂断
 				return
 				thunkAPI.dispatch(methods.call.hangup(true))
@@ -1067,7 +1079,7 @@ export const callMethods = {
 			})?.[0]
 
 			console.log('-----------开始语音信息 callMessage------------')
-			console.log(type, roomId)
+			console.log(type, roomId, call)
 			console.log(deepCopy(dialog), deepCopy(mv))
 
 			let authorId = ''
