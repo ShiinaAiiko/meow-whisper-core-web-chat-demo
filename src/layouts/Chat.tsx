@@ -16,8 +16,11 @@ import store, {
 	AppDispatch,
 	methods,
 	configSlice,
+	contactsSlice,
+	groupSlice,
+	messagesSlice,
 } from '../store'
-import { useTranslation } from 'react-i18next'
+import { getI18n, useTranslation } from 'react-i18next'
 // import { userAgent } from './userAgent'
 import {
 	userAgent,
@@ -38,6 +41,8 @@ import { bindEvent } from '@saki-ui/core'
 import md5 from 'blueimp-md5'
 import { sakiui } from '../config'
 import { Query } from '../modules/methods'
+import { l } from '../modules/MeowWhisperCoreSDK/languages'
+import MeowWhisperCoreSDK from '../modules/MeowWhisperCoreSDK'
 // import parserFunc from 'ua-parser-js'
 
 const ChatLayout = ({ children }: RouterProps) => {
@@ -52,7 +57,7 @@ const ChatLayout = ({ children }: RouterProps) => {
 	const appStatus = useSelector((state: RootState) => state.config.status)
 	const mwc = useSelector((state: RootState) => state.mwc)
 	const messages = useSelector((state: RootState) => state.messages)
-	const nsocketio = useSelector((state: RootState) => state.nsocketio)
+	
 	const config = useSelector((state: RootState) => state.config)
 	const contacts = useSelector((state: RootState) => state.contacts)
 	const group = useSelector((state: RootState) => state.group)
@@ -70,16 +75,16 @@ const ChatLayout = ({ children }: RouterProps) => {
 
 	useEffect(() => {
 		debounce.increase(async () => {
-			await dispatch(methods.tools.init()).unwrap()
+			// 	await dispatch(methods.tools.init()).unwrap()
 			setExpand((await storage.global.get('expand')) || false)
-			await dispatch(methods.config.Init()).unwrap()
-			dispatch(methods.user.Init()).unwrap()
-			dispatch(methods.mwc.Init()).unwrap()
-			await dispatch(methods.sso.Init()).unwrap()
-			await dispatch(methods.user.checkToken()).unwrap()
-			// dispatch(methods.appearance.Init()).unwrap()
-			// console.log('location', location)
-			// console.log('config.deviceType getDeviceType', config)
+			// 	await dispatch(methods.config.Init()).unwrap()
+			// 	dispatch(methods.user.Init()).unwrap()
+			// 	dispatch(methods.mwc.Init()).unwrap()
+			// 	await dispatch(methods.sso.Init()).unwrap()
+			// 	await dispatch(methods.user.checkToken()).unwrap()
+			// 	// dispatch(methods.appearance.Init()).unwrap()
+			// 	// console.log('location', location)
+			// 	// console.log('config.deviceType getDeviceType', config)
 		}, 0)
 
 		// setTimeout(() => {
@@ -91,7 +96,8 @@ const ChatLayout = ({ children }: RouterProps) => {
 	useEffect(() => {
 		const init = async () => {
 			if (user.isInit && user.isLogin) {
-				console.log('user.isInit && user.isLogin')
+				// console.log('ossssss', user.userAgent)
+				// console.log('user.isInit && user.isLogin')
 				// console.log(mwc.sdk)
 				await mwc.sdk?.encryption.init()
 				// await dispatch(methods.encryption.Init())
@@ -108,13 +114,19 @@ const ChatLayout = ({ children }: RouterProps) => {
 	}, [user.isInit, user.isLogin])
 
 	useEffect(() => {
-		console.log('开始获取 getCoantacts', user.isLogin, mwc.encryptionStatus)
+		console.log('开始获取 getContacts', user.isLogin, mwc.encryptionStatus)
 		if (user.isLogin && mwc.encryptionStatus === 'success') {
 			// dispatch(methods.messages.getRecentChatDialogueList())
 
+			dispatch(methods.emoji.init())
 			dispatch(methods.contacts.getContactList())
 			dispatch(methods.group.getGroupList())
 			dispatch(methods.messages.getRecentChatDialogueList())
+		}
+		if (!user.isLogin) {
+			dispatch(contactsSlice.actions.setContacts([]))
+			dispatch(groupSlice.actions.setGroupList([]))
+			dispatch(messagesSlice.actions.setRecentChatDialogueList([]))
 		}
 	}, [user.isLogin, mwc.encryptionStatus])
 
@@ -125,6 +137,9 @@ const ChatLayout = ({ children }: RouterProps) => {
 			group.isInit
 		) {
 			dispatch(methods.messages.initRooms())
+			// setTimeout(() => {
+			// 	window.location.reload()
+			// }, 2000)
 		}
 	}, [contacts.isInit, group.isInit, mwc.nsocketioStatus])
 
@@ -210,6 +225,10 @@ const ChatLayout = ({ children }: RouterProps) => {
 		}
 	}, [config.dev.log])
 
+	useEffect(() => {
+		mwc.sdk?.setLanguage(getI18n().language)
+	}, [config.language])
+
 	return (
 		<>
 			<Helmet>
@@ -259,7 +278,7 @@ const ChatLayout = ({ children }: RouterProps) => {
 					})}
 				</div> */}
 						<div className='loading-logo'>
-							<img src={config.origin + '/logo192.png'} alt='' />
+							<img src={'./icons/256x256.png'} alt='' />
 						</div>
 						{/* <div>progressBar, {progressBar}</div> */}
 						<div className='loading-progress-bar'>
@@ -318,6 +337,11 @@ const ChatLayout = ({ children }: RouterProps) => {
 				)}
 				<>
 					<HeaderComponent></HeaderComponent>
+					{/* {config.deviceType === 'Mobile' ? (
+						<HeaderComponent></HeaderComponent>
+					) : (
+						''
+					)} */}
 					{config.isConnectionError.mobile ? (
 						<div className='cl-connection-error'>
 							<div className='circle-loading'></div>
@@ -342,140 +366,138 @@ const ChatLayout = ({ children }: RouterProps) => {
 						}}
 						className={'cl-main '}
 					>
-						<saki-chat-layout
-							bottom-navigator={
-								location.pathname === '/' ||
-								location.pathname === '/contacts' ||
-								location.pathname === '/notifications'
-									? !searchParams.get('roomId')
-									: false
-							}
-							device-type={config.deviceType}
-						>
-							<div className='cl-side-navigator' slot='side-navigator'>
-								<saki-chat-layout-side-navigator
+						{!user.isLogin ? (
+							<div className='cl-m-m-login'>
+								<saki-button
 									ref={bindEvent({
-										expandStatus: async (e) => {
-											setExpand(e.detail)
-											await storage.global.set('expand', e.detail)
-										},
-										change: async (e) => {
-											console.log(e)
-											if (e.detail.href === '/settings') {
-												dispatch(configSlice.actions.setSettingVisible(true))
-												return
-											}
-											location.pathname !== e.detail.href &&
-												navigate?.(Query(e.detail.href, {}, searchParams))
+										tap: () => {
+											// dispatch(
+											// 	configSlice.actions.setOpenLoginUserDropDownMenu(true)
+											// )
+											dispatch(
+												configSlice.actions.setStatus({
+													type: 'loginModalStatus',
+													v: true,
+												})
+											)
 										},
 									})}
-									expand={expand}
+									padding='8px 18px'
+									type='Primary'
 								>
-									<div slot='top'>
-										<saki-chat-layout-side-navigator-menu-item
+									{t('login', {
+										ns: 'common',
+									})}
+								</saki-button>
+							</div>
+						) : (
+							<saki-chat-layout
+								bottom-navigator={
+									location.pathname === '/' ||
+									location.pathname === '/contacts' ||
+									location.pathname === '/notifications'
+										? !searchParams.get('roomId')
+										: false
+								}
+								device-type={config.deviceType}
+							>
+								<div className='cl-side-navigator' slot='side-navigator'>
+									<saki-chat-layout-side-navigator
+										ref={bindEvent({
+											expandStatus: async (e) => {
+												setExpand(e.detail)
+												await storage.global.set('expand', e.detail)
+											},
+											change: async (e) => {
+												console.log(e)
+												if (e.detail.href === '/settings') {
+													dispatch(configSlice.actions.setSettingVisible(true))
+													return
+												}
+												location.pathname !== e.detail.href &&
+													navigate?.(Query(e.detail.href, {}, searchParams))
+											},
+										})}
+										expand={expand}
+									>
+										<div slot='top'>
+											<saki-chat-layout-side-navigator-menu-item
+												margin='0 0 12px 0'
+												active={location.pathname === '/'}
+												icon-type={'Messages'}
+												name={'MESSAGES'}
+												count={config.count.messages}
+												href='/'
+											></saki-chat-layout-side-navigator-menu-item>
+											<saki-chat-layout-side-navigator-menu-item
+												margin='0 0 12px 0'
+												active={location.pathname === '/contacts'}
+												icon-type={'User'}
+												name={'CONTACTS'}
+												count={config.count.contacts}
+												href='/contacts'
+											></saki-chat-layout-side-navigator-menu-item>
+											{/* <saki-chat-layout-side-navigator-menu-item
 											margin='0 0 12px 0'
+											active={location.pathname === '/notifications'}
+											icon-type={'NotificationsFill'}
+											name={'NOTIFICATIONS'}
+											count={config.count.notifications}
+											href='/notifications'
+										></saki-chat-layout-side-navigator-menu-item> */}
+										</div>
+										<div slot='bottom'>
+											<saki-chat-layout-side-navigator-menu-item
+												margin='12px 0 0 0'
+												active={false}
+												icon-type={'Settings'}
+												icon-size='20px'
+												name={'SETTINGS'}
+												href='/settings'
+											></saki-chat-layout-side-navigator-menu-item>
+										</div>
+									</saki-chat-layout-side-navigator>
+								</div>
+								<div slot='bottom-navigator'>
+									<saki-chat-layout-bottom-navigator
+										ref={bindEvent({
+											expandStatus: async (e) => {
+												setExpand(e.detail)
+												await storage.global.set('expand', e.detail)
+											},
+											change: async (e) => {
+												location.pathname !== e.detail.href &&
+													navigate?.(Query(e.detail.href, {}, searchParams))
+											},
+										})}
+									>
+										<saki-chat-layout-bottom-navigator-item
 											active={location.pathname === '/'}
 											icon-type={'Messages'}
 											name={'MESSAGES'}
 											count={config.count.messages}
 											href='/'
-										></saki-chat-layout-side-navigator-menu-item>
-										<saki-chat-layout-side-navigator-menu-item
-											margin='0 0 12px 0'
+										></saki-chat-layout-bottom-navigator-item>
+										<saki-chat-layout-bottom-navigator-item
 											active={location.pathname === '/contacts'}
 											icon-type={'User'}
 											name={'CONTACTS'}
+											// count={20}
 											count={config.count.contacts}
 											href='/contacts'
-										></saki-chat-layout-side-navigator-menu-item>
-										<saki-chat-layout-side-navigator-menu-item
-											margin='0 0 12px 0'
-											active={location.pathname === '/notifications'}
-											icon-type={'Notifications'}
-											name={'NOTIFICATIONS'}
-											count={config.count.notifications}
-											href='/notifications'
-										></saki-chat-layout-side-navigator-menu-item>
-									</div>
-									<div slot='bottom'>
-										<saki-chat-layout-side-navigator-menu-item
-											margin='12px 0 0 0'
-											active={false}
-											icon-type={'Settings'}
-											icon-size='20px'
-											name={'SETTINGS'}
-											href='/settings'
-										></saki-chat-layout-side-navigator-menu-item>
-									</div>
-								</saki-chat-layout-side-navigator>
-							</div>
-							<div slot='bottom-navigator'>
-								<saki-chat-layout-bottom-navigator
-									ref={bindEvent({
-										expandStatus: async (e) => {
-											setExpand(e.detail)
-											await storage.global.set('expand', e.detail)
-										},
-										change: async (e) => {
-											location.pathname !== e.detail.href &&
-												navigate?.(Query(e.detail.href, {}, searchParams))
-										},
-									})}
-								>
-									<saki-chat-layout-bottom-navigator-item
-										active={location.pathname === '/'}
-										icon-type={'Messages'}
-										name={'MESSAGES'}
-										count={config.count.messages}
-										href='/'
-									></saki-chat-layout-bottom-navigator-item>
-									<saki-chat-layout-bottom-navigator-item
-										active={location.pathname === '/contacts'}
-										icon-type={'User'}
-										name={'CONTACTS'}
-										// count={20}
-										count={config.count.contacts}
-										href='/contacts'
-									></saki-chat-layout-bottom-navigator-item>
-									<saki-chat-layout-bottom-navigator-item
+										></saki-chat-layout-bottom-navigator-item>
+										{/* <saki-chat-layout-bottom-navigator-item
 										active={location.pathname === '/notifications'}
 										icon-type={'Notifications'}
 										name={'NOTIFICATIONS'}
 										count={config.count.notifications}
 										href='/notifications'
-									></saki-chat-layout-bottom-navigator-item>
-								</saki-chat-layout-bottom-navigator>
-							</div>
-							<div className='cl-m-main'>
-								{!user.isLogin ? (
-									<div className='cl-m-m-login'>
-										<saki-button
-											ref={bindEvent({
-												tap: () => {
-													// dispatch(
-													// 	configSlice.actions.setOpenLoginUserDropDownMenu(true)
-													// )
-													dispatch(
-														configSlice.actions.setStatus({
-															type: 'loginModalStatus',
-															v: true,
-														})
-													)
-												},
-											})}
-											padding='8px 18px'
-											type='Primary'
-										>
-											{t('login', {
-												ns: 'common',
-											})}
-										</saki-button>
-									</div>
-								) : (
-									children
-								)}
-							</div>
-						</saki-chat-layout>
+									></saki-chat-layout-bottom-navigator-item> */}
+									</saki-chat-layout-bottom-navigator>
+								</div>
+								<div className='cl-m-main'>{children}</div>
+							</saki-chat-layout>
+						)}
 					</div>
 					<SettingsComponent></SettingsComponent>
 					{/* <UserLoginComponent></UserLoginComponent> */}

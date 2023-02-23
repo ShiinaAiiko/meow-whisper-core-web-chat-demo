@@ -75,7 +75,9 @@ const LoginComponent = () => {
 						},
 					})}
 					closeIcon
-					title='Login'
+					title={t('login', {
+						ns: 'common',
+					})}
 				/>
 				{appStatus.loginModalStatus ? (
 					<saki-sso
@@ -101,10 +103,10 @@ const LoginComponent = () => {
 						style={{
 							flex: 1,
 						}}
+						language={config.language}
 						app-id={sakisso.appId}
 						app-name='Meow-Whisper-Core'
-						app-token={sso.appToken}
-						url={sakisso.clientUrl + '/anonymousUser/login'}
+						url={sakisso.clientUrl + '/login'}
 					/>
 				) : (
 					''

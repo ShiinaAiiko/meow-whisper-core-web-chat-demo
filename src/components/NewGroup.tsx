@@ -29,24 +29,35 @@ const NewGroupComponent = ({
 	visible: boolean
 	onChange: (visible: boolean) => void
 }) => {
-	const { t, i18n } = useTranslation('index-header')
+	const { t, i18n } = useTranslation('contactsPage')
 	const mwc = useSelector((state: RootState) => state.mwc)
 	const config = useSelector((state: RootState) => state.config)
 	const contacts = useSelector((state: RootState) => state.contacts)
-	const nsocketio = useSelector((state: RootState) => state.nsocketio)
+	
 	const appStatus = useSelector((state: RootState) => state.config.status)
 	const user = useSelector((state: RootState) => state.user)
 
 	const dispatch = useDispatch<AppDispatch>()
 
 	const [avatar, setAvatar] = useState<{ base64Url: string; blob: Blob }>()
-	const [name, setName] = useState('sasa')
+	const [name, setName] = useState('')
 	const [isSelectMembers, setIsSelectMembers] = useState(false)
 	const [createButtonLoading, setCreateButtonLoading] = useState(false)
 	const [selectMembers, setSelectMember] = useState<FriendItem[]>([])
 
 	const location = useLocation()
 	const history = useNavigate()
+
+	useEffect(() => {
+		setAvatar({
+			base64Url: '',
+			blob: new Blob(),
+		})
+		setName('')
+		setIsSelectMembers(false)
+		setCreateButtonLoading(false)
+	}, [visible])
+
 	const avatarOutput = (src: { base64Url: string; blob: Blob }) => {
 		if (!src?.blob) return
 		setAvatar(src)
@@ -123,7 +134,7 @@ const NewGroupComponent = ({
 			>
 				{isSelectMembers ? (
 					<SelectMembersComponent
-						title='Add Members'
+						title={t('addMembers')}
 						members={
 							contacts.list.map((v) => {
 								return {
@@ -146,8 +157,12 @@ const NewGroupComponent = ({
 								setIsSelectMembers(false)
 							}
 						}}
-						cancelButtonText='Back'
-						createButtonText='Create'
+						cancelButtonText={t('back', {
+              ns: 'common',
+            })}
+						createButtonText={t('create', {
+              ns: 'common',
+            })}
 						createButtonLoading={createButtonLoading}
 						onSelectMembers={(uids) => {
 							create(uids)
@@ -156,7 +171,7 @@ const NewGroupComponent = ({
 				) : (
 					<div className={'new-group-dropdown ' + config.deviceType}>
 						<div className='ngd-item'>
-							<saki-avatar
+							{/* <saki-avatar
 								ref={bindEvent({
 									output: (e) => {
 										console.log(e)
@@ -175,7 +190,7 @@ const NewGroupComponent = ({
 								edit-icon
 								edit-icon-show-mode={avatar?.base64Url ? 'Hover' : 'Always'}
 								crop
-							></saki-avatar>
+							></saki-avatar> */}
 							<saki-input
 								ref={bindEvent({
 									changevalue: (e) => {
@@ -185,7 +200,7 @@ const NewGroupComponent = ({
 								value={name}
 								type='Text'
 								height='56px'
-								placeholder='Group name'
+								placeholder={t('groupName')}
 								placeholder-animation='MoveUp'
 							></saki-input>
 						</div>
@@ -200,7 +215,9 @@ const NewGroupComponent = ({
 								font-size='14px'
 								type='Normal'
 							>
-								Cancel
+								{t('cancel', {
+									ns: 'common',
+								})}
 							</saki-button>
 							<saki-button
 								ref={bindEvent({
@@ -229,7 +246,9 @@ const NewGroupComponent = ({
 								font-size='14px'
 								type='Primary'
 							>
-								Next
+								{t('next', {
+									ns: 'common',
+								})}
 							</saki-button>
 						</div>
 					</div>

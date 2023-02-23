@@ -16,6 +16,7 @@ import { alert, snackbar } from '@saki-ui/core'
 import { FriendItem } from './contacts'
 import createSocketioRouter from '../modules/socketio/router'
 import { GroupCache } from './group'
+import { getI18n } from 'react-i18next'
 
 export const modeName = 'mwc'
 
@@ -74,6 +75,7 @@ export const mwcMethods = {
 		}
 	>(modeName + '/Init', (_, thunkAPI) => {
 		const { config, mwc } = thunkAPI.getState()
+		if (mwc.sdk) return
 		let meowWhisperCoreSDK = new MeowWhisperCoreSDK({
 			url: meowWhisperCore.url,
 			appId: meowWhisperCore.appId,
@@ -90,6 +92,7 @@ export const mwcMethods = {
 				opts: config.socketIoConfig.opt,
 			},
 		})
+		meowWhisperCoreSDK.setLanguage(getI18n().language)
 		thunkAPI.dispatch(mwcSlice.actions.setSDK(meowWhisperCoreSDK))
 
 		meowWhisperCoreSDK.on('encryption-status', (s) => {
@@ -182,6 +185,7 @@ export const mwcMethods = {
 			store.dispatch(mwcSlice.actions.setNsocketioStatus('connecting'))
 		})
 		meowWhisperCoreSDK.nsocketio.on('disconnect', () => {
+			console.log('nsocketio disconnect')
 			store.dispatch(mwcSlice.actions.setNsocketioStatus('disconnect'))
 		})
 

@@ -11,7 +11,6 @@ import { storageMethods, storageSlice } from './storage'
 import { configMethods, configSlice } from './config'
 import { userMethods, userSlice } from './user'
 import { apiMethods, apiSlice } from './api'
-import { nsocketioMethods, nsocketioSlice } from './nsocketio'
 import { ssoMethods, ssoSlice } from './sso'
 import { encryptionMethods, encryptionSlice } from './encryption'
 import { mwcMethods, mwcSlice } from './mwc'
@@ -21,6 +20,7 @@ import { messagesMethods, messagesSlice } from './messages'
 import { callMethods, callSlice } from './call'
 import { fileMethods, fileSlice } from './file'
 import { toolsMethods, toolsSlice } from './tools'
+import { emojiMethods, emojiSlice } from './emoji'
 
 export interface ActionParams<T = any> {
 	type: string
@@ -32,7 +32,6 @@ const rootReducer = combineReducers({
 	config: configSlice.reducer,
 	user: userSlice.reducer,
 	api: apiSlice.reducer,
-	nsocketio: nsocketioSlice.reducer,
 	sso: ssoSlice.reducer,
 	mwc: mwcSlice.reducer,
 	encryption: encryptionSlice.reducer,
@@ -42,6 +41,7 @@ const rootReducer = combineReducers({
 	call: callSlice.reducer,
 	file: fileSlice.reducer,
 	tools: toolsSlice.reducer,
+	emoji: emojiSlice.reducer,
 })
 
 const store = configureStore({
@@ -54,7 +54,6 @@ const store = configureStore({
 
 export {
 	userSlice,
-	nsocketioSlice,
 	storageSlice,
 	configSlice,
 	ssoSlice,
@@ -66,13 +65,13 @@ export {
 	callSlice,
 	fileSlice,
 	toolsSlice,
+	emojiSlice,
 }
 export const methods = {
 	storage: storageMethods,
 	config: configMethods,
 	user: userMethods,
 	api: apiMethods,
-	nsocketio: nsocketioMethods,
 	sso: ssoMethods,
 	mwc: mwcMethods,
 	encryption: encryptionMethods,
@@ -82,6 +81,7 @@ export const methods = {
 	call: callMethods,
 	file: fileMethods,
 	tools: toolsMethods,
+	emoji: emojiMethods,
 }
 
 // console.log(store.getState())

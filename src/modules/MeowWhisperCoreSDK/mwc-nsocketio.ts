@@ -4,7 +4,6 @@ import protoRoot from '../../protos/proto'
 import { Buffer } from 'buffer'
 import md5 from 'blueimp-md5'
 import {
-	request,
 	AES,
 	RSA,
 	userAgent,
@@ -13,23 +12,20 @@ import {
 	compareUnicodeOrder,
 } from '@nyanyajs/utils'
 // import { NEventListener } from './neventListener'
-import { NSocketIoClient } from './nsocketio'
-import {
-	interceptors,
-	Response,
-	ResponseData,
-	protobuf,
-} from '@nyanyajs/utils/dist/request'
+import { NRequest, ResponseData } from '@nyanyajs/utils/dist/nrequest'
+import { NSocketIoClient } from '@nyanyajs/utils/dist/nsocketio'
+// import { NSocketIoClient } from './nsocketio'
 import Long from 'long'
 import { UserAgent } from '@nyanyajs/utils/dist/userAgent'
 import { MeowWhisperCoreSDK } from './mwc-sdk'
 import { apiVersion, eventName, namespace } from './api'
+
 let RequestType = protoRoot.base.RequestType
 let ResponseType = protoRoot.base.ResponseType
 let ResponseEncryptDataType = protoRoot.base.ResponseEncryptDataType
 let RequestEncryptDataType = protoRoot.base.RequestEncryptDataType
 
-const { ParamsEncode, ResponseDecode } = protobuf
+const { ParamsEncode, ResponseDecode } = NRequest.protobuf
 const P = ParamsEncode
 const R = ResponseDecode
 
@@ -44,6 +40,10 @@ type RouterEventName =
 	| 'router-hangupMessage'
 	| 'router-deleteMessages'
 	| 'router-receiveEditMessage'
+	| 'router-updateContactStatus'
+	| 'router-updateGroupStatus'
+	| 'router-callReconnectMessages'
+	| 'router-updateGroupInfo'
 	| 'router-error'
 
 export type RouterType = {
@@ -53,6 +53,10 @@ export type RouterType = {
 	'router-hangupMessage': ResponseData<protoRoot.message.Hangup.IResponse>
 	'router-deleteMessages': ResponseData<protoRoot.message.DeleteMessages.IResponse>
 	'router-receiveEditMessage': ResponseData<protoRoot.message.EditMessage.IResponse>
+	'router-updateContactStatus': ResponseData<protoRoot.contact.UpdateContactStatus.IResponse>
+	'router-updateGroupStatus': ResponseData<protoRoot.group.UpdateGroupStatus.IResponse>
+	'router-callReconnectMessages': ResponseData<protoRoot.message.CallReconnect.IResponse>
+	'router-updateGroupInfo': ResponseData<protoRoot.group.UpdateGroupInfo.IResponse>
 }
 
 export class MSCnsocketio extends NEventListener<Status | RouterEventName> {
@@ -84,7 +88,7 @@ export class MSCnsocketio extends NEventListener<Status | RouterEventName> {
 				// const userKey = store.state.storage.ws.getSync('ec-userKey')
 
 				const { aesKey, userKey } = this.sdk.encryption.getAesKeySync()
-				console.log(aesKey, userKey, !aesKey || !userKey)
+				console.log('MSCnsocketio', aesKey, userKey, !aesKey || !userKey)
 				if (!aesKey || !userKey) {
 					if (this.sdk.userInfo.token) {
 						this.sdk.encryption.init()
@@ -147,8 +151,17 @@ export class MSCnsocketio extends NEventListener<Status | RouterEventName> {
 			if (!data.key) {
 				data.key = aesKey
 			}
+			const deData = AES.decrypt(data.data, data.key, data.key)
+			// console.log(
+			// 	deData,
+			// 	data.data.length,
+			// 	data.key,
+			// 	aesKey,
+			// 	userKey,
+			// 	this.sdk.userInfo
+			// )
 			response.data = {
-				...JSON.parse(AES.decrypt(data.data, data.key, data.key)),
+				...JSON.parse(deData || '{}'),
 			}
 		} else {
 			let data = ResponseType.decode(
@@ -393,6 +406,57 @@ export class MSCnsocketio extends NEventListener<Status | RouterEventName> {
 						R<protoRoot.message.EditMessage.IResponse>(
 							this.useResponse(response) as any,
 							protoRoot.message.EditMessage.Response
+						)
+					)
+				},
+			})
+			.router({
+				eventName:
+					this.eventName[apiVersion].routeEventName['updateContactStatus'],
+				func: (response) => {
+					this.dispatch(
+						'router-updateContactStatus',
+						R<protoRoot.contact.UpdateContactStatus.IResponse>(
+							this.useResponse(response) as any,
+							protoRoot.contact.UpdateContactStatus.Response
+						)
+					)
+				},
+			})
+			.router({
+				eventName:
+					this.eventName[apiVersion].routeEventName['updateGroupStatus'],
+				func: (response) => {
+					this.dispatch(
+						'router-updateGroupStatus',
+						R<protoRoot.group.UpdateGroupStatus.IResponse>(
+							this.useResponse(response) as any,
+							protoRoot.group.UpdateGroupStatus.Response
+						)
+					)
+				},
+			})
+			.router({
+				eventName:
+					this.eventName[apiVersion].routeEventName['callReconnectMessages'],
+				func: (response) => {
+					this.dispatch(
+						'router-callReconnectMessages',
+						R<protoRoot.message.CallReconnect.IResponse>(
+							this.useResponse(response) as any,
+							protoRoot.message.CallReconnect.Response
+						)
+					)
+				},
+			})
+			.router({
+				eventName: this.eventName[apiVersion].routeEventName['updateGroupInfo'],
+				func: (response) => {
+					this.dispatch(
+						'router-updateGroupInfo',
+						R<protoRoot.group.UpdateGroupInfo.IResponse>(
+							this.useResponse(response) as any,
+							protoRoot.group.UpdateGroupInfo.Response
 						)
 					)
 				},

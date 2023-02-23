@@ -50,6 +50,8 @@ export interface ChatDialogueItem extends protoRoot.message.IChatDialogue {
 	lastSeenTime?: number
 	sort: number
 
+	lastUpdateTime?: number
+
 	// activeRoomInfo用
 	members?: number
 }
@@ -61,6 +63,7 @@ export interface MessageItem extends protoRoot.message.IMessages {
 
 export interface MessagesMap {
 	list: MessageItem[]
+	newMessage: boolean
 	status: 'loading' | 'loaded' | 'noMore'
 	pageNum: number
 	pageSize: number
@@ -81,6 +84,7 @@ const state: {
 		roomId: string
 		list: string[]
 	}
+	isInitChatDialogue: boolean
 } = {
 	recentChatDialogueList: [],
 	deleteDialogIds: [],
@@ -91,12 +95,19 @@ const state: {
 		roomId: '',
 		list: [],
 	},
+	isInitChatDialogue: false,
 }
 export const messagesSlice = createSlice({
 	name: modeName,
 	initialState: state,
 	reducers: {
 		init: (state, params: ActionParams<{}>) => {},
+		setIsInitChatDialogue: (
+			state,
+			params: ActionParams<typeof state['isInitChatDialogue']>
+		) => {
+			state.isInitChatDialogue = params.payload
+		},
 		setRecentChatDialogueList: (
 			state,
 			params: ActionParams<typeof state['recentChatDialogueList']>
@@ -154,6 +165,7 @@ export const messagesSlice = createSlice({
 			const { roomId, type } = params.payload
 			state.messagesMap[roomId] = {
 				list: [],
+				newMessage: false,
 				status: 'loaded',
 				pageNum: 1,
 				pageSize: pageSize,
@@ -178,6 +190,17 @@ export const messagesSlice = createSlice({
 		) => {
 			const { roomId, value } = params.payload
 			state.messagesMap[roomId].status = value
+		},
+		setNewMessageStatus: (
+			state,
+			params: ActionParams<{
+				roomId: string
+				newMessage: boolean
+			}>
+		) => {
+			const { roomId, newMessage } = params.payload
+			const v = state.messagesMap[roomId]
+			v.newMessage = newMessage
 		},
 		setMessageMapList: (
 			state,
@@ -298,6 +321,7 @@ export const messagesMethods = {
 	>(modeName + '/joinRoom', async (roomIds, thunkAPI) => {
 		const { mwc, contacts, group } = thunkAPI.getState()
 		console.log('JoinRoom', contacts, group, roomIds)
+		if (!roomIds.length) return
 		const res = await mwc.sdk?.api.message.joinRoom({
 			roomIds: roomIds,
 		})
@@ -381,46 +405,72 @@ export const messagesMethods = {
 			state: RootState
 		}
 	>(modeName + '/getRecentChatDialogueList', async (_, thunkAPI) => {
-		const { mwc, group, user } = thunkAPI.getState()
+		const { mwc, group, user, messages } = thunkAPI.getState()
 		const res = await mwc.sdk?.api.message.getRecentChatDialogueList()
 		console.log('getRecentChatDialogueList res', res)
 		if (res?.code === 200) {
 			const { messages } = thunkAPI.getState()
-			thunkAPI.dispatch(
-				messagesSlice.actions.setRecentChatDialogueList(
-					res.data?.list?.map<ChatDialogueItem>((v) => {
-						const cd = messages.recentChatDialogueList.filter((sv) => {
-							return sv.id === v.id
-						})?.[0]
-						if (v.type === 'Group') {
-							return {
-								...v,
-								id: v.id || '',
-								type: 'Group',
-								showMessageContainer: cd?.showMessageContainer || false,
-								roomId: v.roomId || '',
-								unreadMessageCount: Number(v.unreadMessageCount) || 0,
-								sort: Number(v.lastMessageTime) || 0,
-							}
-						}
-						const uinfo = mwc.cache.userInfo.get(v.id || '')
+			let list: ChatDialogueItem[] = [...messages.recentChatDialogueList]
+			res.data?.list?.forEach((v) => {
+				let obj: any = {}
 
-						return {
-							...v,
-							id: v.id || '',
-							type: 'Contact',
-							showMessageContainer: cd?.showMessageContainer || false,
-							roomId: v.roomId || '',
-							unreadMessageCount: Number(v.unreadMessageCount) || 0,
-							sort: Number(v.lastMessageTime) || 0,
-						}
-					}) || []
-				)
-			)
+				let index = -1
+				list.some((sv, si) => {
+					if (sv.id === v.id) {
+						index = si
+						return true
+					}
+				})
+
+				let b = list[index]?.showMessageContainer || false
+				if (!b) {
+					b = window.location.search.indexOf(v.roomId || '') >= 0
+				}
+				if (v.type === 'Group') {
+					obj = {
+						...v,
+						id: v.id || '',
+						type: 'Group',
+						showMessageContainer: b,
+						roomId: v.roomId || '',
+						unreadMessageCount: Number(v.unreadMessageCount) || 0,
+						sort: Number(v.lastMessageTime) || 0,
+					}
+				} else {
+					obj = {
+						...v,
+						id: v.id || '',
+						type: 'Contact',
+						showMessageContainer: b,
+						roomId: v.roomId || '',
+						unreadMessageCount: Number(v.unreadMessageCount) || 0,
+						sort: Number(v.lastMessageTime) || 0,
+					}
+				}
+
+				if (index === -1) {
+					list = [obj].concat(list)
+				} else {
+					list[index] = {
+						...list[index],
+						...obj,
+					}
+				}
+			})
+
+			// l?.forEach((v) => {
+			// })
+			thunkAPI.dispatch(messagesSlice.actions.setRecentChatDialogueList(list))
+
 			// thunkAPI.dispatch(methods.messages.setActiveRoomIndex(0))
 		} else {
-			thunkAPI.dispatch(messagesSlice.actions.setRecentChatDialogueList([]))
+			thunkAPI.dispatch(
+				messagesSlice.actions.setRecentChatDialogueList(
+					messages.recentChatDialogueList
+				)
+			)
 		}
+		thunkAPI.dispatch(messagesSlice.actions.setIsInitChatDialogue(true))
 	}),
 	showDialog: createAsyncThunk<
 		void,
@@ -563,6 +613,7 @@ export const messagesMethods = {
 										url: src,
 										width: resizeData.width,
 										height: resizeData.height,
+										type: 'image/jpeg',
 									},
 								})
 							)
@@ -593,6 +644,7 @@ export const messagesMethods = {
 												url: url,
 												width: resizeData.width,
 												height: resizeData.height,
+												type: 'image/jpeg',
 											},
 										},
 									})
@@ -703,6 +755,17 @@ export const messagesMethods = {
 				...message,
 			}
 
+			thunkAPI.dispatch(
+				messagesSlice.actions.setMessageItem({
+					roomId,
+					messageId: messageId,
+					value: {
+						...m,
+						status: 0,
+					},
+				})
+			)
+
 			let params: protoRoot.message.SendMessage.IRequest = {
 				roomId,
 				type,
@@ -805,6 +868,13 @@ export const messagesMethods = {
 			if (!call && !image) {
 				if (!message) {
 					console.log('未输入信息')
+
+					// thunkAPI.dispatch(
+					// 	methods.tools.sendNotification({
+					// 		title: 'dialogInfo.name',
+					// 		body: '21321312',
+					// 	})
+					// )
 					return ''
 				}
 			}
@@ -964,7 +1034,19 @@ export const messagesMethods = {
 						: Number(mv.list[0].createTime) || 0,
 			},
 		})
-		console.log('真正的开始获取2', roomId, res)
+		console.log('真正的开始获取2', roomId, res, {
+			roomId,
+			pageNum: 1,
+			pageSize: mv.pageSize,
+			type: mv.type,
+			timeRange: {
+				start: 1540947600,
+				end:
+					mv.list.length === 0
+						? Math.floor(new Date().getTime() / 1000)
+						: Number(mv.list[0].createTime) || 0,
+			},
+		})
 		if (res?.code === 200) {
 			thunkAPI.dispatch(
 				methods.contacts.getUserCache(
@@ -1102,11 +1184,16 @@ export const messagesMethods = {
 		) => {
 			const { mwc, user, group, messages } = thunkAPI.getState()
 
+			if (!message) {
+				console.log('未输入信息')
+
+				return
+			}
+
 			const mv = messages.messagesMap[roomId]
 			const dialog = messages.recentChatDialogueList.filter((v) => {
 				return v.roomId === roomId
 			})?.[0]
-
 			mv.list.some((v) => {
 				if (v.id === messageId) {
 					thunkAPI.dispatch(

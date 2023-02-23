@@ -28,15 +28,47 @@ import { userAgent } from './user'
 import { storage } from './storage'
 import { alert, snackbar } from '@saki-ui/core'
 import { room } from '../protos/proto'
-import {
-	SFUClient,
-	SFUSignal,
-	SFUStream,
-} from '../modules/MeowWhisperCoreSDK/ionSfuSdk'
+
+import { SFUClient, SFUSignal, SFUStream } from '@nyanyajs/utils/dist/ionSfuSdk'
+import { ConnectionQualityStats } from '@nyanyajs/utils/dist/ionSfuSdk/stream'
 
 export let callAlert: ReturnType<typeof alert> | undefined
 export let setCallAlert = (b: typeof callAlert) => {
 	callAlert = b
+}
+
+let reconnectionTimeout: NodeJS.Timeout
+
+const callConnected = () => {
+	const { call } = store.getState()
+
+	store.dispatch(callSlice.actions.setReconnectionTime(-1))
+
+	if (call.status !== -1) {
+		return
+	}
+	store.dispatch(
+		callSlice.actions.setTime({
+			type: 'startTime',
+			value: Math.floor(new Date().getTime() / 1000),
+		})
+	)
+	store.dispatch(callSlice.actions.setStatus(0))
+}
+const onStream = (stream: SFUStream) => {
+	store.dispatch(methods.call.addStream(stream))
+	const { call } = store.getState()
+	console.log('onStream', stream, call.client, call.signal)
+
+	if (
+		// true ||
+		// stream.clientInfo.uid !== user.userInfo.uid &&
+		call.status === -1 &&
+		call.streams.filter((s) => s.stream && s.stream.type === 'Remote').length >=
+			1
+	) {
+		callConnected()
+	}
 }
 
 export const modeName = 'call'
@@ -54,6 +86,7 @@ const state: {
 		}[]
 		turnServer: protoRoot.message.ITurnServer
 	}
+	// currentType: 'Audio' | 'Video' | 'ScreenShare'
 	modal: {
 		showSmallWindow: boolean
 	}
@@ -96,12 +129,17 @@ const state: {
 		currentTime: number
 	}
 	sound: ReturnType<typeof MeowWhisperCoreSDK.sound>
+	reconnectionCount: number
+	reconnectionTime: number
+	connectionQualityStats: {
+		[streamId: string]: ConnectionQualityStats
+	}
 } = {
 	enable: false,
 	modal: {
 		showSmallWindow: false,
 	},
-	status: -2,
+	status: -3,
 	options: {
 		type: 'Audio',
 		callToken: '',
@@ -110,6 +148,7 @@ const state: {
 		roomId: '',
 		turnServer: {},
 	},
+	// currentType: 'Audio',
 	mediaDevices: {
 		list: [],
 		activeAudioDevice: '',
@@ -125,7 +164,10 @@ const state: {
 		startTime: 0,
 		currentTime: 0,
 	},
-	sound: MeowWhisperCoreSDK.sound('/call.mp3'),
+	sound: MeowWhisperCoreSDK.sound('./call.mp3'),
+	reconnectionCount: 0,
+	reconnectionTime: -1,
+	connectionQualityStats: {},
 }
 export const callSlice = createSlice({
 	name: modeName,
@@ -134,19 +176,41 @@ export const callSlice = createSlice({
 		init: (state, params: ActionParams<{}>) => {},
 		start: (state, params: ActionParams<typeof state['options']>) => {
 			if (state.enable) {
-				snackbar({
-					message: '正在通话中~',
-					autoHideDuration: 2000,
-					vertical: 'top',
-					horizontal: 'center',
-					backgroundColor: 'var(--saki-default-color)',
-					color: '#fff',
-				}).open()
+				// console.log('call.statuscall.status', state.status)
+				if (state?.options?.roomId !== params.payload.roomId) {
+					snackbar({
+						message: '正在通话中~',
+						autoHideDuration: 2000,
+						vertical: 'top',
+						horizontal: 'center',
+						backgroundColor: 'var(--saki-default-color)',
+						color: '#fff',
+					}).open()
+				}
 				return
 			}
-			state.deviceStatus.audio = false
-			state.deviceStatus.video = false
-			state.deviceStatus.screenShare = false
+			// state.currentType = params.payload.type
+
+			switch (params.payload.type) {
+				case 'Audio':
+					state.deviceStatus.audio = true
+					state.deviceStatus.video = false
+					state.deviceStatus.screenShare = false
+					break
+				case 'Video':
+					state.deviceStatus.audio = true
+					state.deviceStatus.video = true
+					state.deviceStatus.screenShare = false
+					break
+				case 'ScreenShare':
+					state.deviceStatus.audio = false
+					state.deviceStatus.video = false
+					state.deviceStatus.screenShare = true
+					break
+
+				default:
+					break
+			}
 
 			state.enable = true
 			state.modal.showSmallWindow = false
@@ -156,9 +220,66 @@ export const callSlice = createSlice({
 		// -1 挂断
 		// 0 正在接通
 		// 1 接通完成
+		setCallTokenInfo: (
+			state,
+			params: ActionParams<{
+				callToken: string
+				turnServer: protoRoot.message.ITurnServer
+			}>
+		) => {
+			state.options.callToken = params.payload.callToken
+			state.options.turnServer = params.payload.turnServer
+		},
+
+		setReconnectionTime: (state, params: ActionParams<number>) => {
+			state.reconnectionTime = params.payload
+			console.log(
+				'setReconnectionTime',
+				reconnectionTimeout,
+				state.reconnectionTime
+			)
+			clearTimeout(reconnectionTimeout)
+			// if (state.reconnectionTime <= 0) {
+			// 	return
+			// }
+
+			reconnectionTimeout = setTimeout(() => {
+				const { call } = store.getState()
+				console.log('setReconnectionTime 开始断开', call.reconnectionTime)
+				call.reconnectionTime > 0 &&
+					call.status === 0 &&
+					store.dispatch(methods.call.hangup(true))
+			}, 10 * 1000)
+		},
+
+		// -2 未通话
+		// -1 挂断
+		// 0 正在接通
+		// 1 接通完成
 		setStatus: (state, params: ActionParams<typeof state['status']>) => {
 			state.status = params.payload
 			console.log('setStatus', params.payload)
+		},
+		// setCurrentType: (
+		// 	state,
+		// 	params: ActionParams<typeof state['currentType']>
+		// ) => {
+		// 	state.currentType = params.payload
+		// },
+		// setConnectionQualityStats: (
+		// 	state,
+		// 	params: ActionParams<{
+		// 		id: string
+		// 		v: ConnectionQualityStats
+		// 	}>
+		// ) => {
+		// 	state.connectionQualityStats[params.payload.id] = params.payload.v
+		// },
+		setReconnectionCount: (
+			state,
+			params: ActionParams<typeof state['reconnectionCount']>
+		) => {
+			state.reconnectionCount = params.payload
 		},
 		setModal: (
 			state,
@@ -198,19 +319,21 @@ export const callSlice = createSlice({
 					console.log('setSignal error', e)
 				})
 				state.signal.on('close', (e) => {
-					const { call } = store.getState()
-          console.log('setSignalclose', e, call)
-          // 未接通就关闭的情况下
-					if (call.status === -1) {
-						snackbar({
-							message: '与通话服务器失去了联系',
-							autoHideDuration: 2000,
-							vertical: 'top',
-							horizontal: 'center',
-							backgroundColor: 'var(--saki-default-color)',
-							color: '#fff',
-						}).open()
-					}
+					setTimeout(() => {
+						const { call } = store.getState()
+						console.log('setSignalclose', e, call)
+						// 未接通就关闭的情况下
+						if (call.status === -1) {
+							snackbar({
+								message: '与通话服务器失去了联系',
+								autoHideDuration: 2000,
+								vertical: 'top',
+								horizontal: 'center',
+								backgroundColor: 'var(--saki-default-color)',
+								color: '#fff',
+							}).open()
+						}
+					})
 				})
 			}
 		},
@@ -281,6 +404,15 @@ export const callSlice = createSlice({
 			const streams = params.payload
 			state.streams = streams
 		},
+		setStreamStatus: (
+			_,
+			params: ActionParams<{
+				s: SFUStream
+				v: any
+			}>
+		) => {
+			params.payload.s.setStatus(params.payload.v)
+		},
 		removeStream: (state, params: ActionParams<SFUStream>) => {
 			const stream = params.payload
 
@@ -294,9 +426,44 @@ export const callSlice = createSlice({
 				state.streams = state.streams.filter(
 					(s) => s.stream && s.stream.id !== stream.id
 				)
-				if (state.streams.length) {
-					state.streams[0].isMain = true
+
+				if (stream.type === 'Remote') {
+					let isexist = false
+					console.log(
+						'xxxxxxxxxxxxxxxxxxxxx',
+						state.enable,
+						state.status,
+						state.streams.length
+					)
+					state.streams.some((v) => {
+						if (v.userInfo['uid'] === stream.clientInfo.uid) {
+							isexist = true
+							return true
+						}
+					})
+
+					if (!isexist) {
+						console.log('发信息给', stream.clientInfo.uid, '让其重连')
+						if (state.enable) {
+							console.log('开始重连')
+							setTimeout(() => {
+								const { mwc, call } = store.getState()
+								mwc.sdk?.api.message.callReconnect({
+									roomId: call.options.roomId,
+									reconnectUserId: [stream.clientInfo.uid],
+								})
+							})
+						}
+					}
 				}
+				console.log('通讯统计', stream.getconnectionQualityStats())
+
+				state.connectionQualityStats[stream.id] =
+					stream.getconnectionQualityStats()
+				// connectionQualityStats
+				// if (state.streams.length) {
+				// 	state.streams[0].isMain = true
+				// }
 			}
 		},
 		addStream: (state, params: ActionParams<SFUStream>) => {
@@ -351,7 +518,7 @@ export const callSlice = createSlice({
 			})
 			state.modal.showSmallWindow = false
 		},
-		hangup: (state, _: ActionParams<void>) => {
+		clear: (state, _: ActionParams<void>) => {
 			state.options = {
 				type: 'Audio',
 				callToken: '',
@@ -362,15 +529,23 @@ export const callSlice = createSlice({
 			}
 			state.enable = false
 			state.modal.showSmallWindow = false
-			// 开始挂断
-			state.status = -1
+			state.connectionQualityStats = {}
 
-			// 对方挂断后就-2
-			state.status = -2
+			// 对方挂断后就-3
+			state.status = -3
 			state.time.currentTime = 0
 			state.time.startTime = 0
+		},
+		hangup: (state, _: ActionParams<void>) => {
+			console.log('hangup set')
 			state.signal?.close()
 			state.streams = []
+			// 开始挂断
+			state.status = -2
+
+			setTimeout(() => {
+				store.dispatch(callSlice.actions.clear())
+			}, 1500)
 		},
 
 		publish: (
@@ -378,7 +553,12 @@ export const callSlice = createSlice({
 			params: ActionParams<'Audio' | 'Video' | 'ScreenShare'>
 		) => {
 			const type = params.payload
-
+			console.log(
+				'publissssss',
+				state.deviceStatus.audio,
+				state.deviceStatus.video,
+				state.deviceStatus.screenShare
+			)
 			if (type === 'ScreenShare') {
 				const callOptions: Ion.Constraints = {
 					audio: true,
@@ -414,39 +594,34 @@ export const callSlice = createSlice({
 							default:
 								break
 						}
-						console.log(err)
+						console.error(err)
 					})
 			} else {
 				const callOptions: Ion.Constraints = {
-					audio: true,
-					// video: false,
-					video: { width: 1280, height: 720, frameRate: 15 },
+					audio: state.deviceStatus.audio,
+					// video: state.deviceStatus.video
+					// 	? { width: 848, height: 480, frameRate: 15 }
+					// 	: false,
+					video: state.deviceStatus.video
+						? { width: 1280, height: 720, frameRate: 15 }
+						: false,
+					// video: { width: 1280, height: 720, frameRate: 15 },
 					// audio: false,
 					// video: false,
 					codec: 'vp8',
 					resolution: 'hd',
 					simulcast: false, // enable simulcast
 				}
-				console.log('callOptions', callOptions)
+				console.log('callOptions', type, state.options.type, callOptions)
 				state.client
 					?.publish(callOptions, type)
 					.then((ls) => {
 						console.log(ls)
 					})
 					.catch((err) => {
-						switch (type) {
-							case 'Audio':
-								store.dispatch(callSlice.actions.switchAudio(false))
+						store.dispatch(callSlice.actions.switchAudio(false))
+						store.dispatch(callSlice.actions.switchVideo(false))
 
-								break
-							case 'Video':
-								store.dispatch(callSlice.actions.switchVideo(false))
-
-								break
-
-							default:
-								break
-						}
 						snackbar({
 							message: '设备获取失败，无法进行获取媒体数据',
 							autoHideDuration: 2000,
@@ -463,7 +638,7 @@ export const callSlice = createSlice({
 							default:
 								break
 						}
-						console.log(err)
+						console.error(err)
 					})
 			}
 		},
@@ -497,80 +672,105 @@ export const callSlice = createSlice({
 			}
 		},
 		switchAudio: (state, params: ActionParams<boolean>) => {
-			const bool = params.payload
-			state.deviceStatus.audio = bool
-			// console.log('switchAudio', bool)
+			try {
+				const bool = params.payload
+				state.deviceStatus.audio = bool
+				// console.log('switchAudio', bool)
 
-			let isExist = false
-			state.streams.some((v) => {
-				if (
-					v.stream &&
-					v.stream.type === 'Local' &&
-					(v.stream.callType === 'Video' || v.stream.callType === 'Audio')
-				) {
-					isExist = true
-					if (bool) {
-						v.stream.unmute('audio')
-					} else {
-						v.stream.mute('audio')
+				let isExist = false
+				state.streams.some((v) => {
+					if (
+						v.stream &&
+						v.stream.type === 'Local' &&
+						(v.stream.callType === 'Video' || v.stream.callType === 'Audio')
+					) {
+						isExist = true
+						if (bool) {
+							v.stream.unmute('audio')
+						} else {
+							v.stream.mute('audio')
+						}
+						return true
 					}
-					return true
-				}
-			})
-			if (bool && !isExist) {
-				setTimeout(() => {
-					store.dispatch(callSlice.actions.publish('Audio'))
 				})
+				if (bool && !isExist) {
+					setTimeout(() => {
+						store.dispatch(callSlice.actions.publish('Audio'))
+					})
+				}
+			} catch (error) {
+				console.error(error)
+				snackbar({
+					message: '音频切换失败',
+					autoHideDuration: 2000,
+					vertical: 'top',
+					horizontal: 'center',
+					backgroundColor: 'var(--saki-default-color)',
+					color: '#fff',
+				}).open()
 			}
 		},
 		switchVideo: (state, params: ActionParams<boolean>) => {
-			const bool = params.payload
-			state.deviceStatus.video = bool
+			try {
+				const bool = params.payload
+				state.deviceStatus.video = bool
 
-			let isExist = false
-			state.streams.some((v) => {
-				// console.log({ ...v.stream }, v.stream.stream, bool)
-				if (
-					v.stream &&
-					v.stream?.type === 'Local' &&
-					(v.stream.callType === 'Video' || v.stream.callType === 'Audio')
-				) {
-					isExist = true
-					if (bool) {
-						v.stream.unmute('video')
-						// 开启视频时，如果有共享屏幕则会失效
+				let isExist = false
+				console.log('switchVideo', bool)
+				state.streams.some((v) => {
+					// console.log({ ...v.stream }, v.stream.stream, bool)
+					if (
+						v.stream &&
+						v.stream?.type === 'Local' &&
+						(v.stream.callType === 'Video' || v.stream.callType === 'Audio')
+					) {
+						isExist = true
+						if (bool) {
+							v.stream.unmute('video')
+							// 开启视频时，如果有共享屏幕则会失效
 
-						state.streams.some((v) => {
-							if (
-								v.stream &&
-								v.stream?.type === 'Local' &&
-								v.stream?.callType === 'ScreenShare'
-							) {
-								if (bool) {
-									v.stream?.stream.getTracks().some((track) => {
-										if (
-											track.kind === 'video' &&
-											track.readyState === 'ended'
-										) {
-											v.stream?.unpublish()
-											return true
-										}
-									})
+							state.streams.some((v) => {
+								if (
+									v.stream &&
+									v.stream?.type === 'Local' &&
+									v.stream?.callType === 'ScreenShare'
+								) {
+									if (bool) {
+										v.stream?.stream.getTracks().some((track) => {
+											if (
+												track.kind === 'video' &&
+												track.readyState === 'ended'
+											) {
+												v.stream?.unpublish()
+												return true
+											}
+										})
+									}
+									return true
 								}
-								return true
-							}
-						})
-					} else {
-						v.stream.mute('video')
+							})
+						} else {
+							v.stream.mute('video')
+						}
+						return true
 					}
-					return true
-				}
-			})
-
-			if (bool && !isExist) {
-				setTimeout(() => {
-					store.dispatch(callSlice.actions.publish('Video'))
 				})
+
+				if (bool && !isExist) {
+					setTimeout(() => {
+						store.dispatch(callSlice.actions.publish('Video'))
+					})
+				}
+			} catch (error) {
+				console.error(error)
+				snackbar({
+					message: '视频切换失败',
+					autoHideDuration: 2000,
+					vertical: 'top',
+					horizontal: 'center',
+					backgroundColor: 'var(--saki-default-color)',
+					color: '#fff',
+				}).open()
 			}
 		},
 	},
@@ -656,61 +856,63 @@ export const callMethods = {
 
 		const trackEvent = (track: MediaStreamTrack) => {
 			// if (!track.enabled) return
-			track.addEventListener('mute', () => {
-				console.log('mute', stream)
-				console.log(stream.stream.getTracks())
-				if (stream.type === 'Local' && stream.callType !== 'ScreenShare') {
-					switch (track.kind) {
-						case 'video':
-							store.dispatch(
-								callSlice.actions.setDeviceStatus({
-									type: 'video',
-									value: false,
-								})
-							)
+			track.addEventListener('mute', async () => {
+				setTimeout(() => {
+					console.log('mute', stream)
+					console.log(stream.stream.getTracks())
+					if (stream.type === 'Local' && stream.callType !== 'ScreenShare') {
+						switch (track.kind) {
+							case 'video':
+								store.dispatch(
+									callSlice.actions.setDeviceStatus({
+										type: 'video',
+										value: false,
+									})
+								)
+								break
+							case 'audio':
+								store.dispatch(
+									callSlice.actions.setDeviceStatus({
+										type: 'audio',
+										value: false,
+									})
+								)
+								break
 
-							break
-						case 'audio':
-							store.dispatch(
-								callSlice.actions.setDeviceStatus({
-									type: 'audio',
-									value: false,
-								})
-							)
-
-							break
-
-						default:
-							break
+							default:
+								break
+						}
 					}
-				}
+				})
 			})
-			track.addEventListener('unmute', () => {
-				console.log('unmute', stream)
-				if (stream.type === 'Local' && stream.callType !== 'ScreenShare') {
-					switch (track.kind) {
-						case 'video':
-							store.dispatch(
-								callSlice.actions.setDeviceStatus({
-									type: 'video',
-									value: true,
-								})
-							)
-							break
-						case 'audio':
-							store.dispatch(
-								callSlice.actions.setDeviceStatus({
-									type: 'audio',
-									value: true,
-								})
-							)
+			track.addEventListener('unmute', async () => {
+				setTimeout(() => {
+					console.log('unmute', stream)
+					if (stream.type === 'Local' && stream.callType !== 'ScreenShare') {
+						switch (track.kind) {
+							case 'video':
+								store.dispatch(
+									callSlice.actions.setDeviceStatus({
+										type: 'video',
+										value: true,
+									})
+								)
+								break
+							case 'audio':
+								store.dispatch(
+									callSlice.actions.setDeviceStatus({
+										type: 'audio',
+										value: true,
+									})
+								)
 
-							break
+								break
 
-						default:
-							break
+							default:
+								break
+						}
 					}
-				}
+				})
 			})
 			track.onended = (e) => {
 				console.log('sfu onended', e)
@@ -728,6 +930,36 @@ export const callMethods = {
 		stream.stream.addEventListener('addtrack', (e) => {
 			console.log('addtrack', e.track)
 			trackEvent(e.track)
+		})
+		stream.addEventListener('connected', () => {
+			console.log('连接成功')
+			setTimeout(() => {
+				thunkAPI.dispatch(callSlice.actions.setReconnectionTime(-1))
+			})
+		})
+		stream.addEventListener('reconnect', () => {
+			console.log('正在重连接')
+			// store.dispatch(
+			// 	callSlice.actions.setReconnectionTime(
+			// 		Math.round(new Date().getTime() / 1000)
+			// 	)
+			// )
+		})
+		stream.addEventListener('disconnect', () => {
+			console.log('断开连接')
+			setTimeout(() => {
+				thunkAPI.dispatch(
+					callSlice.actions.setReconnectionTime(
+						Math.round(new Date().getTime() / 1000)
+					)
+				)
+			})
+		})
+		stream.addEventListener('connected', (e) => {
+			console.log('onremovetrack', e, stream.id, stream?.stream?.getTracks())
+			setTimeout(() => {
+				thunkAPI.dispatch(callSlice.actions.removeStream(stream))
+			})
 		})
 		stream.addEventListener('removetrack', (e) => {
 			console.log('onremovetrack', e, stream.id, stream?.stream?.getTracks())
@@ -810,7 +1042,7 @@ export const callMethods = {
 	>(
 		modeName + '/startCalling',
 		async ({ roomId, callToken, type, turnServer, participants }, thunkAPI) => {
-			const { mwc, call, user, group, messages } = thunkAPI.getState()
+			const { mwc, call, user, config, group, messages } = thunkAPI.getState()
 
 			if (callAlert || call.status === 0) {
 				if (call.status === 0) {
@@ -870,7 +1102,7 @@ export const callMethods = {
 					default:
 						break
 				}
-				call.sound.play()
+				config.notification.callSound && call.sound.play()
 				callAlert = alert({
 					titleAvatar: info.userInfo?.avatar || '',
 					titleAvatarText: info.userInfo?.nickname || '',
@@ -880,13 +1112,13 @@ export const callMethods = {
 					confirmText: 'Accept',
 					async onCancel() {
 						callAlert = undefined
-						call.sound.stop()
+						config.notification.callSound && call.sound.stop()
 
 						thunkAPI.dispatch(methods.call.hangup(true))
 					},
 					onConfirm() {
 						callAlert = undefined
-						call.sound.stop()
+						config.notification.callSound && call.sound.stop()
 						thunkAPI.dispatch(
 							callSlice.actions.start({
 								type,
@@ -999,5 +1231,153 @@ export const callMethods = {
 				status: status,
 				callTime: call.time.currentTime - call.time.startTime || 0,
 			}))
+	}),
+	connect: createAsyncThunk<
+		void,
+		boolean,
+		{
+			state: RootState
+		}
+	>(modeName + '/connect', async (reconnect, thunkAPI) => {
+		const { mwc, call, contacts, group, user } = thunkAPI.getState()
+
+		if (!call.options.callToken) return
+
+		thunkAPI.dispatch(
+			callSlice.actions.setReconnectionTime(
+				Math.round(new Date().getTime() / 1000)
+			)
+		)
+
+		if (call.status === -3) {
+			store.dispatch(callSlice.actions.setStatus(-1))
+		}
+		// call.signal?.close()
+
+		let s: SFUSignal | undefined = call.signal
+		let webrtc = {
+			url: meowWhisperCore.webrtc.url,
+			options: {
+				codec: 'vp8',
+				iceServers: [
+					{
+						urls: call.options.turnServer.urls,
+						username: call.options.turnServer.username,
+						credential: call.options.turnServer.credential,
+					},
+				],
+			},
+		}
+		if (!s || reconnect) {
+			console.log('turnserver', call.options.turnServer)
+
+			// if (!s) {
+			s = new SFUSignal(webrtc.url, {
+				token: call.options.callToken,
+				deviceId: user.deviceId,
+				uid: user.userInfo.uid,
+				userAgent: user.userAgent,
+				userInfo: {
+					uid: user.userInfo.uid,
+					avatar: user.userInfo.avatar,
+					username: user.userInfo.nickname,
+					nickname: user.userInfo.nickname,
+				},
+				customData: {
+					appId: meowWhisperCore.appId,
+					uid: user.userInfo.uid,
+					roomId: call.options.roomId,
+				},
+			})
+			thunkAPI.dispatch(callSlice.actions.setSignal(s))
+		}
+		console.log('call', s)
+		// }
+		let c: SFUClient | undefined = call.client
+		if (s && (!c || reconnect)) {
+			c = s.createClient(call.options.roomId, webrtc.options as any)
+			// const c = s.createClient('ion', webrtc.options as any)
+			console.log('使用的roomId：', call.options.roomId, webrtc.options as any)
+			thunkAPI.dispatch(callSlice.actions.setClient(c))
+			c.onStream = (stream) => {
+				onStream(stream)
+			}
+			const api = c.DataChannelAPI()
+			api.router('connected', (data) => {
+				console.log('callconnected', data)
+
+				if (data.data.uid !== user.userInfo.uid) {
+					callConnected()
+				}
+			})
+			api.emit('connected', {
+				uid: user.userInfo.uid,
+			})
+
+			const gmd = await c.getMediaDevices()
+			console.log('gmd', gmd)
+			if (!gmd) {
+				snackbar({
+					message: '音视频设备获取失败，无法进行通讯',
+					autoHideDuration: 2000,
+					vertical: 'top',
+					horizontal: 'center',
+					backgroundColor: 'var(--saki-default-color)',
+					color: '#fff',
+				}).open()
+				return
+			}
+			let audioTemp = false
+			let videoTemp = false
+			const md = gmd
+				.filter((d) => {
+					return d.kind === 'audioinput' || d.kind === 'videoinput'
+				})
+				.map((v) => {
+					const item = {
+						deviceId: v.deviceId,
+						groupId: v.groupId,
+						kind: v.kind,
+						label: v.label,
+						subtitle: '',
+					}
+					if (v.kind === 'audioinput') {
+						!audioTemp && (item.subtitle = 'Audio')
+						audioTemp = true
+					}
+					if (v.kind === 'videoinput') {
+						!videoTemp && (item.subtitle = 'Video')
+						videoTemp = true
+					}
+
+					// console.log('mediaDevices', item)
+					return item
+				})
+
+			thunkAPI.dispatch(callSlice.actions.setMediaDevicesList(md))
+			// console.log('callccc', c, md, call.options.roomId, call.currentType)
+		}
+
+		if (call.deviceStatus.screenShare) {
+			thunkAPI.dispatch(callSlice.actions.publish('ScreenShare'))
+		}
+		if (call.deviceStatus.audio || call.deviceStatus.video) {
+			thunkAPI.dispatch(
+				callSlice.actions.publish(call.deviceStatus.video ? 'Video' : 'Audio')
+			)
+		}
+
+		// if (call.options.type === 'ScreenShare') {
+		// 	if (
+		// 		call.options.participatingUsers.filter((v) => v.caller)?.[0].uid ===
+		// 		user.userInfo.uid
+		// 	) {
+		// 		thunkAPI.dispatch(callSlice.actions.publish(call.currentType))
+		// 	} else {
+		// 		thunkAPI.dispatch(callSlice.actions.publish('Audio'))
+		// 	}
+		// } else {
+		// 	thunkAPI.dispatch(callSlice.actions.publish(call.currentType))
+		// }
 	}),
 }

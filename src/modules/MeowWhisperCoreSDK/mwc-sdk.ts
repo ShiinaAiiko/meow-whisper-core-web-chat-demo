@@ -4,7 +4,7 @@ import protoRoot from '../../protos/proto'
 import { Buffer } from 'buffer'
 import md5 from 'blueimp-md5'
 import {
-	request,
+	NRequest,
 	AES,
 	RSA,
 	userAgent,
@@ -17,25 +17,26 @@ import {
 	deepCopy,
 	Debounce,
 } from '@nyanyajs/utils'
-import {
-	interceptors,
-	Response,
-	ResponseData,
-	protobuf,
-} from '@nyanyajs/utils/dist/request'
+// import {
+// 	interceptors,
+// 	Response,
+// 	ResponseData,
+// 	protobuf,
+// } from '@nyanyajs/utils/dist/request'
 import Long from 'long'
 import { UserAgent } from '@nyanyajs/utils/dist/userAgent'
 import { MSCnsocketio, MSCnsocketioOption } from './mwc-nsocketio'
 import { cacheInit } from './cache'
 import { apiUrls, apiVersion, getApiUrl } from './api'
 import moment from 'moment'
+import { l } from './languages'
 
 let RequestType = protoRoot.base.RequestType
 let ResponseType = protoRoot.base.ResponseType
 let ResponseEncryptDataType = protoRoot.base.ResponseEncryptDataType
 let RequestEncryptDataType = protoRoot.base.RequestEncryptDataType
 
-const { ParamsEncode, ResponseDecode } = protobuf
+const { ParamsEncode, ResponseDecode } = NRequest.protobuf
 const P = ParamsEncode
 const R = ResponseDecode
 
@@ -44,6 +45,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 	'encryption-status' | 'encryption-error' | 'response'
 > {
 	static protoRoot = protoRoot
+	static language = 'en-US'
 	private encryptionHeartbeatDetection = new Debounce()
 	url = ''
 	appId = ''
@@ -54,6 +56,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 	api: ReturnType<this['initApi']>
 	encryption: ReturnType<this['initEncryption']>
 	encryptionApi = false
+
 	private encryptionCount = 0
 	userInfo: {
 		deviceId: string
@@ -75,42 +78,8 @@ export class MeowWhisperCoreSDK extends NEventListener<
 			[k: string]: any
 		}
 	}
+	R = new NRequest()
 	static cache = cacheInit.call(this)
-
-	static timeConfig = {
-		centerTimeMomentConfig: {
-			sameDay: '[Today] HH:mm:ss',
-			nextDay: '[Tomorrow] HH:mm:ss',
-			nextWeek: 'dddd H:mm:ss',
-			lastDay: '[Yesterday] HH:mm:ss',
-			lastWeek: 'YY-MM-DD HH:mm:ss',
-			sameElse: 'YYYY-MM-DD HH:mm:ss',
-		},
-		sendTimeFullMomentConfig: {
-			sameDay: '[Today] HH:mm:ss',
-			nextDay: '[Tomorrow] HH:mm:ss',
-			nextWeek: 'dddd H:mm:ss',
-			lastDay: '[Yesterday] HH:mm:ss',
-			lastWeek: 'YY-MM-DD HH:mm:ss',
-			sameElse: 'YYYY-MM-DD HH:mm:ss',
-		},
-		dialogTimeMomentConfig: {
-			sameDay: 'HH:mm',
-			nextDay: '[Tomorrow] HH:mm',
-			nextWeek: 'dddd',
-			lastDay: '[Yesterday] HH:mm',
-			lastWeek: 'YY-MM-DD',
-			sameElse: 'YYYY-MM-DD',
-		},
-		lastSeenTimeMomentConfig: {
-			sameDay: '[last seen at] HH:mm',
-			nextDay: '[Tomorrow] HH:mm',
-			nextWeek: 'dddd',
-			lastDay: '[last seen yesterday at] HH:mm',
-			lastWeek: '[last seen ] YY-MM-DD',
-			sameElse: '[last seen ] YYYY-MM-DD',
-		},
-	}
 
 	constructor({
 		url,
@@ -138,6 +107,11 @@ export class MeowWhisperCoreSDK extends NEventListener<
 	}) {
 		super()
 		console.log('初始化MeowWhisperCoreSDK')
+		;(window as any)['mwc'] = {
+			l,
+			methods: MeowWhisperCoreSDK.methods,
+		}
+
 		this.url = url
 		this.appId = appId
 		// this.appKey = appKey
@@ -163,145 +137,151 @@ export class MeowWhisperCoreSDK extends NEventListener<
 	}
 
 	initInterceptors() {
-		interceptors.request.use(async (config) => {
-			if ((config.url || '').indexOf(this.url) >= 0) {
-				let data: protoRoot.base.IRequestEncryptDataType = {}
-				// const { token, deviceId, userAgent } = getUserInfo()
-				// console.log(String(config.url).indexOf(api.baseUrl) >= 0 && token)
-				// && token
-				if (String(config.url).indexOf(this.url) >= 0) {
-					// config.data.token = token
-					// config.data.deviceId = deviceId
-				}
-				// nyanyalog.info("axiosrequest",JSON.parse(JSON.stringify(config.data)))
-				// 发送请求也需要序列号
-				// 当没有远程publicKey的时候也要加密
-				if (config.url && this.encryptionApi) {
-					// console.log(!store.state.encryption.client?.aes.key)
-					// 没有完成加密
-					// const aesKey = store.state.storage.ws.getSync('ec-aesKey')
-					// const userKey = store.state.storage.ws.getSync('ec-userKey')
-					const urls = ['/encryption/exchangeKey', '/sso']
-					console.log('config.url', config.url)
-					let { aesKey, userKey } = this.userInfo.token
-						? await this.encryption.getAndInitAesKey(
-								urls.filter((v) => config.url && config.url.indexOf(v) >= 0)
-									?.length === 0
-						  )
-						: {
-								aesKey: '',
-								userKey: '',
-						  }
-
-					// console.log(
-					// 	'ec-aesKey',
-					// 	!aesKey || !userKey,
-					// 	aesKey,
-					// 	userKey,
-					// 	Math.random().toString(),
-					// 	Math.random()
-					// )
-					if (!aesKey || !userKey) {
-						// if (this.userInfo.token) {
-						// 	this.encryption.init()
-						// }
-						// 1、获取并加密临时TempAESKey
-						const aesKey = md5(
-							Math.random().toString() +
-								Math.random().toString() +
-								Math.random().toString() +
-								new Date().toString()
-						)
-						// console.log('aesKey', this.publicRsa.publicKey, aesKey)
-						const aesKeyEnStr = RSA.encrypt(this.publicRsa.publicKey, aesKey)
-						// console.log('aesKeyEnStr', aesKeyEnStr)
-						// console.log('config.data,', config.data)
-						const dataEnStr = AES.encrypt(config.data, aesKey)
-						// console.log(config.data.data.length)
-						// console.log(config.data.token.length)
-						// console.log(dataEnStr.value)
-						// console.log(aesKeyEnStr.length)
-						data.data = dataEnStr.value
-						data.tempAesKey = aesKeyEnStr
-						// console.log(config.data)
-					} else {
-						const enData = AES.encrypt(config.data, aesKey)
-
-						data.data = enData.value
-						data.key = userKey
-					}
-				}
-				// if (config?.config?.dataType === 'protobuf') {
-				// 	config.responseType = 'arraybuffer'
-				// }
-				// config.data = {
-				// 	a: 121,
-				// }
-				// console.log(' this.user', this.user)
-
-				const requestData: any = RequestType.encode(
-					RequestType.create({
-						token: this.userInfo.token || '',
-						deviceId: this.userInfo.deviceId || '',
-						userAgent: this.userInfo.userAgent,
-						appId: this.appId,
-						data: Buffer.from(
-							RequestEncryptDataType.encode(
-								RequestEncryptDataType.create(data)
-							).finish() as any,
-							'base64'
-						).toString('base64'),
-					})
-				).finish()
-				config.data = {
-					data: Buffer.from(requestData, 'base64').toString('base64'),
-				}
-				// console.log( Buffer.from(requestData, 'base64').toString('base64').length)
-
-				// console.log('config', config)
+		this.R.interceptors.request.use(async (config) => {
+			// console.log(
+			// 	'ec-aesKey',
+			// 	config,
+			// )
+			let data: protoRoot.base.IRequestEncryptDataType = {}
+			// const { token, deviceId, userAgent } = getUserInfo()
+			// console.log(String(config.url).indexOf(api.baseUrl) >= 0 && token)
+			// && token
+			if (String(config.url).indexOf(this.url) >= 0) {
+				// config.data.token = token
+				// config.data.deviceId = deviceId
 			}
+			// nyanyalog.info("axiosrequest",JSON.parse(JSON.stringify(config.data)))
+			// 发送请求也需要序列号
+			// 当没有远程publicKey的时候也要加密
+			if (config.url && this.encryptionApi) {
+				// console.log(!store.state.encryption.client?.aes.key)
+				// 没有完成加密
+				// const aesKey = store.state.storage.ws.getSync('ec-aesKey')
+				// const userKey = store.state.storage.ws.getSync('ec-userKey')
+				const urls = ['/encryption/exchangeKey', '/sso']
+				console.log(
+					'config.url',
+					!!this.userInfo.token,
+					config.url,
+					urls.filter((v) => config.url && config.url.indexOf(v) >= 0)
+						?.length === 0
+				)
+				let { aesKey, userKey } = this.userInfo.token
+					? await this.encryption.getAndInitAesKey(
+							urls.filter((v) => config.url && config.url.indexOf(v) >= 0)
+								?.length === 0
+					  )
+					: {
+							aesKey: '',
+							userKey: '',
+					  }
+
+				console.log(
+					'config.url ec-aesKey',
+					!aesKey || !userKey,
+					aesKey,
+					userKey,
+					Math.random().toString(),
+					Math.random()
+				)
+				if (!aesKey || !userKey) {
+					// if (this.userInfo.token) {
+					// 	this.encryption.init()
+					// }
+					// 1、获取并加密临时TempAESKey
+					const aesKey = md5(
+						Math.random().toString() +
+							Math.random().toString() +
+							Math.random().toString() +
+							new Date().toString()
+					)
+					// console.log('aesKey', this.publicRsa.publicKey, aesKey)
+					const aesKeyEnStr = RSA.encrypt(this.publicRsa.publicKey, aesKey)
+					// console.log('aesKeyEnStr', aesKeyEnStr)
+					// console.log('config.data,', config.data)
+					const dataEnStr = AES.encrypt(config.data, aesKey)
+					// console.log(config.data.data.length)
+					// console.log(config.data.token.length)
+					// console.log(dataEnStr.value)
+					// console.log(aesKeyEnStr.length)
+					data.data = dataEnStr.value
+					data.tempAesKey = aesKeyEnStr
+					// console.log(config.data)
+				} else {
+					const enData = AES.encrypt(config.data, aesKey)
+
+					data.data = enData.value
+					data.key = userKey
+				}
+			}
+			// if (config?.config?.dataType === 'protobuf') {
+			// 	config.responseType = 'arraybuffer'
+			// }
+			// config.data = {
+			// 	a: 121,
+			// }
+			console.log(' this.userInfo', this.userInfo)
+
+			const requestData: any = RequestType.encode(
+				RequestType.create({
+					token: this.userInfo.token || '',
+					deviceId: this.userInfo.deviceId || '',
+					userAgent: this.userInfo.userAgent,
+					appId: this.appId,
+					data: Buffer.from(
+						RequestEncryptDataType.encode(
+							RequestEncryptDataType.create(data)
+						).finish() as any,
+						'base64'
+					).toString('base64'),
+				})
+			).finish()
+			config.data = {
+				data: Buffer.from(requestData, 'base64').toString('base64'),
+			}
+			// console.log( Buffer.from(requestData, 'base64').toString('base64').length)
+
+			// console.log('config', config)
 			return config
 		})
 
-		interceptors.response.use(async (response) => {
+		this.R.interceptors.response.use(async (response) => {
 			// console.log(response.data)
 			const config: any = response.config
-			if ((config.url || '').indexOf(this.url) >= 0) {
-				if (
-					response.data.protobuf &&
-					response.headers['content-type'] === 'application/x-protobuf'
-				) {
-					if (this.encryptionApi) {
-						let data = ResponseEncryptDataType.decode(
-							// Buffer.from(response.data.protobuf, 'utf-8')
-							new Uint8Array(Buffer.from(response.data.protobuf, 'base64'))
-						)
+			if (
+				response.data.protobuf &&
+				response?.headers?.['content-type'] === 'application/x-protobuf'
+			) {
+				if (this.encryptionApi) {
+					let data = ResponseEncryptDataType.decode(
+						// Buffer.from(response.data.protobuf, 'utf-8')
+						new Uint8Array(Buffer.from(response.data.protobuf, 'base64'))
+					)
 
-						// const aesKey = store.state.storage.ws.getSync('ec-aesKey')
+					// const aesKey = store.state.storage.ws.getSync('ec-aesKey')
 
-						const { aesKey, userKey } = this.encryption.getAesKeySync()
+					const { aesKey, userKey } = await this.encryption.getAesKey()
 
-						// console.log(data)
-						// 用户无AESKEY，所以返临时key
-						if (!data.key) {
-							data.key = aesKey
-						}
-						response.data = {
-							...response.data,
-							...JSON.parse(AES.decrypt(data.data, data.key, data.key)),
-						}
-					} else {
-						let data = ResponseType.decode(
-							// Buffer.from(response.data.protobuf, 'utf-8')
-							new Uint8Array(Buffer.from(response.data.protobuf, 'base64'))
-						)
-						response.data = {
-							...data,
-						}
+					// console.log(data)
+					// 用户无AESKEY，所以返临时key
+					if (!data.key) {
+						data.key = aesKey
 					}
-
-					delete response.data.protobuf
+					response.data = {
+						...response.data,
+						...JSON.parse(AES.decrypt(data.data, data.key, data.key)),
+					}
+				} else {
+					let data = ResponseType.decode(
+						// Buffer.from(response.data.protobuf, 'utf-8')
+						new Uint8Array(Buffer.from(response.data.protobuf, 'base64'))
+					)
+					response.data = {
+						...data,
+					}
 				}
+
+				delete response.data.protobuf
 			}
 
 			if (response.data.code === 10009 || response.data.code === 10008) {
@@ -335,6 +315,9 @@ export class MeowWhisperCoreSDK extends NEventListener<
 	setDeviceId(deviceId: string) {
 		this.userInfo.deviceId = deviceId
 	}
+	setLanguage(language: string) {
+		MeowWhisperCoreSDK.language = language
+	}
 	clear() {
 		this.setToken('')
 		this.setDeviceId('')
@@ -343,7 +326,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 	}
 	static methods = {
 		formatSimpleAnonymousUserInfo: (
-			v: protoRoot.user.ISimpleAnonymousUserInfo | null | undefined
+			v: protoRoot.user.ISimpleSSOUserInfo | null | undefined
 		) => {
 			if (v) {
 				v.nickname = v.nickname || ''
@@ -391,23 +374,49 @@ export class MeowWhisperCoreSDK extends NEventListener<
 			// console.log("formatCallTypeText", type);
 			switch (type) {
 				case 'Video':
-					return '视频通话'
-				case 'Audio':
-					return '语音通话'
-				case 'ScreenShare':
-					return '屏幕共享'
+					switch (MeowWhisperCoreSDK.language) {
+						case 'zh-CN':
+							return '视频通话'
 
+						case 'zh-TW':
+							return '視頻通話'
+
+						default:
+							return 'Video call'
+					}
+				case 'Audio':
+					switch (MeowWhisperCoreSDK.language) {
+						case 'zh-CN':
+							return '语音通话'
+
+						case 'zh-TW':
+							return '語音通話'
+
+						default:
+					}
+					return 'Audio call'
+				case 'ScreenShare':
+					switch (MeowWhisperCoreSDK.language) {
+						case 'zh-CN':
+							return '屏幕共享'
+
+						case 'zh-TW':
+							return '屏幕共享'
+
+						default:
+							return 'Screen share'
+					}
 				default:
 					break
 			}
 		},
 		formatCallMsgText: ({
-			type,
+			isAuthor,
 			callType,
 			status,
 			callTime,
 		}: {
-			type: string
+			isAuthor: boolean
 			callType: 'Audio' | 'Video' | 'ScreenShare'
 
 			status: number
@@ -421,21 +430,25 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					let minutes = time.minutes()
 					let seconds = time.seconds()
 					message =
-						'通话时长 ' +
+						l(MeowWhisperCoreSDK.language, 'callDuration') +
 						moment({ h: hours, m: minutes, s: seconds }).format('HH:mm:ss')
 					break
 				case 0:
-					message = '正在进行' + this.methods.formatCallTypeText(callType)
+					message =
+						l(MeowWhisperCoreSDK.language, 'in') +
+						this.methods.formatCallTypeText(callType)
 					break
 				case -1:
-					message = this.methods.formatCallTypeText(callType) + '未接通'
+					message =
+						this.methods.formatCallTypeText(callType) +
+						l(MeowWhisperCoreSDK.language, 'notConnected')
 					break
 				case -2:
-					message = '已在其他设备处理'
+					message = l(MeowWhisperCoreSDK.language, 'callOnAnotherDevice')
 					break
 				case -3:
-					message = `${type === 'sender' ? '发起了一个' : '正在邀请你加入'}${
-						type === 'ScreenShare'
+					message = `${isAuthor ? '发起了一个' : '正在邀请你加入'}${
+						callType === 'ScreenShare'
 							? '屏幕共享'
 							: this.methods.formatCallTypeText(callType)
 					}`
@@ -454,7 +467,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 			if (!message?.message) {
 				if (message?.call?.type) {
 					return this.methods.formatCallMsgText({
-						type: isAuthor ? 'sender' : 'receiver',
+						isAuthor: isAuthor,
 						callType: message.call.type as any,
 						status: message.call.status as any,
 						callTime: message.call.time as any,
@@ -471,17 +484,27 @@ export class MeowWhisperCoreSDK extends NEventListener<
 			// moment()
 			return time
 				? moment(time * 1000).calendar(
-						MeowWhisperCoreSDK.timeConfig.dialogTimeMomentConfig
+						l(MeowWhisperCoreSDK.language, 'dialogTimeMomentConfig')
 				  )
 				: ''
 		},
+		getLastMessageFullTime: (time: number) => {
+			// 暂定仅文本
+			// moment()
+			return time
+				? moment(time * 1000).calendar(
+						l(MeowWhisperCoreSDK.language, 'sendTimeFullMomentConfig')
+				  )
+				: ''
+		},
+
 		getLastSeenTime: (time: number) => {
 			// 暂定仅文本
 			// moment()
 
 			return time
 				? moment(time * 1000).calendar(
-						MeowWhisperCoreSDK.timeConfig.lastSeenTimeMomentConfig
+						l(MeowWhisperCoreSDK.language, 'lastSeenTimeMomentConfig')
 				  )
 				: ''
 		},
@@ -497,7 +520,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 		return {
 			// createAccount: async () => {
 			// 	console.log('createAccount', this.url)
-			// 	const res = await request({
+			// 	const res = await this.R.request({
 			// 		method: 'POST',
 			// 		url: this.url + this.apiVersion + '/user/createAccount',
 			// 		data: P<protoRoot.user.CreateAccount.IRequest>(
@@ -515,7 +538,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 			createSSOAppToken: async () => {
 				console.log('createSSOAppToken', this.url)
 				const res = R<protoRoot.sso.CreateAppToken.IResponse>(
-					await request({
+					await this.R.request({
 						method: 'GET',
 						url: getApiUrl(this.url, 'createAppToken'),
 						data: P<protoRoot.sso.CreateAppToken.IRequest>(
@@ -536,7 +559,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 			verifySSOAppToken: async () => {
 				console.log('createSSOAppToken', this.url)
 				const res = R<protoRoot.sso.CreateAppToken.IResponse>(
-					await request({
+					await this.R.request({
 						method: 'GET',
 						url: getApiUrl(this.url, 'verifyAppToken'),
 						data: P<protoRoot.sso.CreateAppToken.IRequest>(
@@ -565,7 +588,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				DHPublicKey: string
 			}) => {
 				const res = R<protoRoot.encryption.ExchangeKey.IResponse>(
-					await request({
+					await this.R.request({
 						method: 'POST',
 						url: getApiUrl(this.url, 'encryptionExchangeKey'),
 						data: P<protoRoot.encryption.ExchangeKey.IRequest>(
@@ -587,15 +610,15 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				return undefined
 			},
 			contact: {
-				searchContact: async ({ uid }: { uid: string }) => {
+				searchContact: async (
+					params: protoRoot.contact.SearchContact.IRequest
+				) => {
 					const res = R<protoRoot.contact.SearchContact.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'GET',
 							url: getApiUrl(this.url, 'searchContact'),
 							data: P<protoRoot.contact.SearchContact.IRequest>(
-								{
-									uid,
-								},
+								params,
 								protoRoot.contact.SearchContact.Request
 							),
 						}),
@@ -605,7 +628,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				},
 				searchUserInfoList: async ({ uid }: { uid: string[] }) => {
 					const res = R<protoRoot.contact.SearchUserInfoList.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'GET',
 							url: getApiUrl(this.url, 'searchUserInfoList'),
 							data: P<protoRoot.contact.SearchUserInfoList.IRequest>(
@@ -624,22 +647,13 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					}
 					return res
 				},
-				addContact: async ({
-					uid,
-					remark,
-				}: {
-					uid: string
-					remark: string
-				}) => {
+				addContact: async (params: protoRoot.contact.AddContact.IRequest) => {
 					const res = R<protoRoot.contact.AddContact.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'POST',
 							url: getApiUrl(this.url, 'addContact'),
 							data: P<protoRoot.contact.AddContact.IRequest>(
-								{
-									uid,
-									remark,
-								},
+								params,
 								protoRoot.contact.AddContact.Request
 							),
 						}),
@@ -649,7 +663,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				},
 				deleteContact: async ({ uid }: { uid: string }) => {
 					const res = R<protoRoot.contact.DeleteContact.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'POST',
 							url: getApiUrl(this.url, 'deleteContact'),
 							data: P<protoRoot.contact.DeleteContact.IRequest>(
@@ -665,7 +679,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				},
 				getContactList: async () => {
 					const res = R<protoRoot.contact.GetContactList.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'GET',
 							url: getApiUrl(this.url, 'getContactList'),
 							data: P<protoRoot.contact.GetContactList.IRequest>(
@@ -698,7 +712,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					}[]
 				}) => {
 					const res = R<protoRoot.group.NewGroup.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'POST',
 							url: getApiUrl(this.url, 'newGroup'),
 							data: P<protoRoot.group.NewGroup.IRequest>(
@@ -719,7 +733,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				},
 				getAllJoinedGroups: async () => {
 					const res = R<protoRoot.group.GetAllJoinedGroups.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'GET',
 							url: getApiUrl(this.url, 'getAllJoinedGroups'),
 							data: P<protoRoot.group.GetAllJoinedGroups.IRequest>(
@@ -736,7 +750,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				},
 				getGroupInfo: async ({ groupId }: { groupId: string }) => {
 					const res = R<protoRoot.group.GetGroupInfo.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'GET',
 							url: getApiUrl(this.url, 'getGroupInfo'),
 							data: P<protoRoot.group.GetGroupInfo.IRequest>(
@@ -753,7 +767,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				},
 				getGroupMembers: async ({ groupId }: { groupId: string }) => {
 					const res = R<protoRoot.group.GetGroupMembers.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'GET',
 							url: getApiUrl(this.url, 'getGroupMembers'),
 							data: P<protoRoot.group.GetGroupMembers.IRequest>(
@@ -775,10 +789,10 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					uid,
 				}: {
 					groupId: string
-					uid: string
+					uid: string[]
 				}) => {
 					const res = R<protoRoot.group.LeaveGroup.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'POST',
 							url: getApiUrl(this.url, 'leaveGroup'),
 							data: P<protoRoot.group.LeaveGroup.IRequest>(
@@ -796,11 +810,11 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					remark,
 				}: {
 					groupId: string
-					uid: string
+					uid: string[]
 					remark: string
 				}) => {
 					const res = R<protoRoot.group.JoinGroup.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'POST',
 							url: getApiUrl(this.url, 'joinGroup'),
 							data: P<protoRoot.group.JoinGroup.IRequest>(
@@ -814,7 +828,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				},
 				disbandGroup: async ({ groupId }: { groupId: string }) => {
 					const res = R<protoRoot.group.DisbandGroup.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'POST',
 							url: getApiUrl(this.url, 'disbandGroup'),
 							data: P<protoRoot.group.DisbandGroup.IRequest>(
@@ -826,13 +840,29 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					)
 					return res
 				},
+				updateGroupInfo: async (
+					params: protoRoot.group.UpdateGroupInfo.IRequest
+				) => {
+					const res = R<protoRoot.group.UpdateGroupInfo.IResponse>(
+						await this.R.request({
+							method: 'POST',
+							url: getApiUrl(this.url, 'updateGroupInfo'),
+							data: P<protoRoot.group.UpdateGroupInfo.IRequest>(
+								params,
+								protoRoot.group.UpdateGroupInfo.Request
+							),
+						}),
+						protoRoot.group.UpdateGroupInfo.Response
+					)
+					return res
+				},
 			},
 			file: {
 				getUploadFileToken: async (
 					params: protoRoot.file.GetUploadFileToken.IRequest
 				) => {
 					const res = R<protoRoot.file.GetUploadFileToken.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'POST',
 							url: getApiUrl(this.url, 'getUploadFileToken'),
 							data: P<protoRoot.file.GetUploadFileToken.IRequest>(
@@ -841,6 +871,39 @@ export class MeowWhisperCoreSDK extends NEventListener<
 							),
 						}),
 						protoRoot.file.GetUploadFileToken.Response
+					)
+					return res
+				},
+				getCustomStickersUploadFileToken: async (
+					params: protoRoot.file.GetCustomStickersUploadFileToken.IRequest
+				) => {
+					const res =
+						R<protoRoot.file.GetCustomStickersUploadFileToken.IResponse>(
+							await this.R.request({
+								method: 'POST',
+								url: getApiUrl(this.url, 'getCustomStickersUploadFileToken'),
+								data: P<protoRoot.file.GetCustomStickersUploadFileToken.IRequest>(
+									params,
+									protoRoot.file.GetCustomStickersUploadFileToken.Request
+								),
+							}),
+							protoRoot.file.GetCustomStickersUploadFileToken.Response
+						)
+					return res
+				},
+				getCustomStickersFileUrl: async (
+					params: protoRoot.file.GetCustomStickersFileUrl.IRequest
+				) => {
+					const res = R<protoRoot.file.GetCustomStickersFileUrl.IResponse>(
+						await this.R.request({
+							method: 'GET',
+							url: getApiUrl(this.url, 'getCustomStickersFileUrl'),
+							data: P<protoRoot.file.GetCustomStickersFileUrl.IRequest>(
+								params,
+								protoRoot.file.GetCustomStickersFileUrl.Request
+							),
+						}),
+						protoRoot.file.GetCustomStickersFileUrl.Response
 					)
 					return res
 				},
@@ -952,7 +1015,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					params: protoRoot.message.DeleteMessages.IRequest
 				) => {
 					const res = R<protoRoot.message.DeleteMessages.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'POST',
 							url: getApiUrl(this.url, 'deleteMessages'),
 							data: P<protoRoot.message.DeleteMessages.IRequest>(
@@ -969,7 +1032,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				},
 				getRecentChatDialogueList: async () => {
 					const res = R<protoRoot.message.GetRecentChatDialogueList.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'GET',
 							url: getApiUrl(this.url, 'getRecentChatDialogueList'),
 							data: P<protoRoot.message.GetRecentChatDialogueList.IRequest>(
@@ -1001,7 +1064,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					}
 				}) => {
 					const res = R<protoRoot.message.GetHistoricalMessages.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'GET',
 							url: getApiUrl(this.url, 'getHistoricalMessages'),
 							data: P<protoRoot.message.GetHistoricalMessages.IRequest>(
@@ -1024,7 +1087,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				},
 				readAllMessages: async ({ roomId }: { roomId: string }) => {
 					const res = R<protoRoot.message.ReadAllMessages.IResponse>(
-						await request({
+						await this.R.request({
 							method: 'POST',
 							url: getApiUrl(this.url, 'readAllMessages'),
 							data: P<protoRoot.message.ReadAllMessages.IRequest>(
@@ -1041,6 +1104,28 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					}
 					return res
 				},
+				/**
+				 * socketio api
+				 */
+				callReconnect: async (
+					data: protoRoot.message.CallReconnect.IRequest
+				) => {
+					const res = R<protoRoot.message.CallReconnect.IResponse>(
+						(await this.nsocketio.client?.emit({
+							namespace: this.nsocketio.namespace[apiVersion].chat,
+							eventName:
+								this.nsocketio.eventName[apiVersion].requestEventName[
+									'callReconnect'
+								],
+							params: P<protoRoot.message.CallReconnect.IRequest>(
+								data,
+								protoRoot.message.CallReconnect.Request
+							),
+						})) as any,
+						protoRoot.message.CallReconnect.Response
+					)
+					return res
+				},
 			},
 		}
 	}
@@ -1055,10 +1140,16 @@ export class MeowWhisperCoreSDK extends NEventListener<
 			isInit: false,
 			key: {
 				aesKey: '',
-				rsaKey: '',
+				userKey: '',
+				deadline: 0,
 			},
 			clear: async () => {
 				if (this.encryptionApi) {
+					this.encryption.key = {
+						aesKey: '',
+						userKey: '',
+						deadline: 0,
+					}
 					await this.storage.delete('ec-aesKey')
 					await this.storage.delete('ec-userKey')
 					await this.storage.delete('ec-deadline')
@@ -1069,6 +1160,27 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				this.encryptionCount = 0
 				await this.encryption.clear()
 				await this.encryption.init()
+			},
+
+			s: (deadline: number | Long.Long | null | undefined) => {
+				this.encryptionCount = 0
+				this.encryption.isInit = true
+				console.log(
+					'Number(sendPublicKey.deadline) - Math.floor(new Date().getTime() / 1000) - 3',
+					Number(deadline) - Math.floor(new Date().getTime() / 1000) - 3
+				)
+				this.encryption.heartbeatDetectionWaitFunc.forEach((v) => {
+					v()
+				})
+				this.encryption.heartbeatDetectionWaitFunc = []
+				const hdTime =
+					(Number(deadline) - Math.floor(new Date().getTime() / 1000) - 3) *
+					1000
+				this.encryptionHeartbeatDetection.increase(() => {
+					this.encryption.heartbeatDetection()
+				}, hdTime)
+
+				console.log('hdTime', hdTime)
 			},
 			init: async () => {
 				console.log(2132131, this.encryption.status)
@@ -1081,7 +1193,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					this.dispatch('encryption-error')
 					return
 				}
-				if (e.status === 'getting') return
+				if (e.status === 'getting' || !this.userInfo.token) return
 
 				setStatus('getting')
 
@@ -1093,6 +1205,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				// console.log('getKey', getKey)
 
 				if (getKey.aesKey && getKey.userKey) {
+					this.encryption.s(getKey.deadline)
 					console.timeEnd('加密通讯成功！')
 					setStatus('success')
 					return
@@ -1218,6 +1331,11 @@ export class MeowWhisperCoreSDK extends NEventListener<
 						// console.log(key.toString())
 						// console.log(md5(key.toString()).toUpperCase(), userAESKeyDeStr)
 
+						this.encryption.key.aesKey = md5(key.toString()).toUpperCase()
+						this.encryption.key.userKey = userAESKeyDeStr
+						this.encryption.key.deadline = Number(sendPublicKey.deadline)
+
+						console.log('this.encryption.key', this.encryption.key)
 						await this.storage.set(
 							'ec-aesKey',
 							md5(key.toString()).toUpperCase()
@@ -1225,29 +1343,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 						await this.storage.set('ec-userKey', userAESKeyDeStr)
 						await this.storage.set('ec-deadline', sendPublicKey.deadline)
 
-						this.encryptionCount = 0
-						this.encryption.isInit = true
-						console.log(
-							'Number(sendPublicKey.deadline) - Math.floor(new Date().getTime() / 1000) - 3',
-							Number(sendPublicKey.deadline) -
-								Math.floor(new Date().getTime() / 1000) -
-								3
-						)
-
-						this.encryption.heartbeatDetectionWaitFunc.forEach((v) => {
-							v()
-						})
-						this.encryption.heartbeatDetectionWaitFunc = []
-						const hdTime =
-							(Number(sendPublicKey.deadline) -
-								Math.floor(new Date().getTime() / 1000) -
-								3) *
-							1000
-						this.encryptionHeartbeatDetection.increase(() => {
-							this.encryption.heartbeatDetection()
-						}, hdTime)
-
-						console.log('hdTime', hdTime)
+						this.encryption.s(sendPublicKey.deadline)
 						console.timeEnd('加密通讯成功！')
 						setStatus('success')
 						// store.state.storage.ws.set('ec-userKey')
@@ -1270,10 +1366,34 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					})
 				})
 			},
-			heartbeatDetection: () => {
-				const { aesKey } = this.encryption.getAesKeySync()
+			heartbeatDetection: async () => {
+				const { aesKey } = await this.encryption.getAesKey()
 				if (aesKey) {
 					this.encryption.reconnect()
+				}
+			},
+			getAesKeySync: (): {
+				aesKey: string
+				userKey: string
+			} => {
+				const aesKey = this.encryption.key.aesKey
+				const userKey = this.encryption.key.userKey
+				const deadline = this.encryption.key.deadline
+				console.log('this.encryption.key', this.encryption.key)
+				if (
+					!aesKey ||
+					!userKey ||
+					!deadline ||
+					deadline <= Math.floor(new Date().getTime() / 1000)
+				) {
+					return {
+						aesKey: '',
+						userKey: '',
+					}
+				}
+				return {
+					aesKey,
+					userKey,
 				}
 			},
 			getAesKey: async (
@@ -1281,6 +1401,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 			): Promise<{
 				aesKey: string
 				userKey: string
+				deadline: number
 			}> => {
 				const aesKey = await this.storage.get('ec-aesKey')
 				const userKey = await this.storage.get('ec-userKey')
@@ -1297,44 +1418,29 @@ export class MeowWhisperCoreSDK extends NEventListener<
 						if (this.encryption.status === 'success') {
 							const aesKey = await this.storage.get('ec-aesKey')
 							const userKey = await this.storage.get('ec-userKey')
+							const deadline = await this.storage.get('ec-deadline')
 							return {
 								aesKey,
 								userKey,
+								deadline,
 							}
 						}
 					}
 					return {
 						aesKey: '',
 						userKey: '',
+						deadline: 0,
 					}
 				}
-				return {
-					aesKey,
-					userKey,
-				}
-			},
-			getAesKeySync: (): {
-				aesKey: string
-				userKey: string
-			} => {
-				const aesKey = this.storage.getSync('ec-aesKey')
-				const userKey = this.storage.getSync('ec-userKey')
-				const deadline = this.storage.getSync('ec-deadline')
 
-				if (
-					!aesKey ||
-					!userKey ||
-					!deadline ||
-					deadline <= Math.floor(new Date().getTime() / 1000)
-				) {
-					return {
-						aesKey: '',
-						userKey: '',
-					}
-				}
+				this.encryption.key.aesKey = aesKey
+				this.encryption.key.userKey = userKey
+				this.encryption.key.deadline = deadline
+
 				return {
 					aesKey,
 					userKey,
+					deadline,
 				}
 			},
 
@@ -1344,10 +1450,11 @@ export class MeowWhisperCoreSDK extends NEventListener<
 				aesKey: string
 				userKey: string
 			}> => {
-				const aesKey = this.storage.getSync('ec-aesKey')
-				const userKey = this.storage.getSync('ec-userKey')
-				const deadline = this.storage.getSync('ec-deadline')
-				console.log('getAndInitAesKey')
+				console.log('getAndInitAesKey1', this.storage)
+				const aesKey = await this.storage.get('ec-aesKey')
+				const userKey = await this.storage.get('ec-userKey')
+				const deadline = await this.storage.get('ec-deadline')
+				console.log('getAndInitAesKey4', aesKey, userKey, deadline)
 				if (
 					!aesKey ||
 					!userKey ||
@@ -1360,7 +1467,7 @@ export class MeowWhisperCoreSDK extends NEventListener<
 					}
 					// console.log('!this.encryption.isInit', !this.encryption.isInit)
 					// if (!this.encryption.isInit) {
-					return this.encryption.getAesKeySync()
+					return this.encryption.getAesKey()
 					// }
 					// await this.encryption.clear()
 					// await this.encryption.init()

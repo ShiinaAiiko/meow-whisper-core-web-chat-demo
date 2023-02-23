@@ -1,11 +1,13 @@
 #! /bin/bash
 name="meow-whisper-web-client"
+appName="meow-whisper"
 port=15311
-version=1.0.1
+version=1.0.0
 branch="main"
 # configFilePath="config.dev.json"
 webConfigFilePath="config.pro.web.json"
-electronConfigFilePath="config.pro.electron.json"
+electronConfigFilePath="config.test.json"
+# electronConfigFilePath="config.pro.electron.json"
 registryUrl="https://registry.npmmirror.com/"
 DIR=$(cd $(dirname $0) && pwd)
 allowMethods=("dockerlogs el:icon el:install el:run el:build push run protos stop npmconfig install gitpull dockerremove start logs")
@@ -97,18 +99,19 @@ logs() {
 }
 
 el:icon() {
-  sudo cp -r $DIR/public/logo-neko-circle-white1500.png $DIR/src/electron/logo.png
-  cd ./src/electron
+  sudo cp -r $DIR/public/logo.png $DIR/electron/logo.png
+  cd ./electron
   yarn el:icon
-  cd ../../
+  cd ../
 
-  cp -r $DIR/src/electron/icons $DIR/public/icons
-  rm -rf $DIR/src/electron/logo.png
-  rm -rf $DIR/src/electron/icons
+  cp -r $DIR/electron/icons $DIR/public/icons
+  rm -rf $DIR/electron/logo.png
+  rm -rf $DIR/electron/icons
 }
 
 el:build() {
-  el:icon
+  # el:icon
+  yarn el:icon
 
   cp -r $DIR/$electronConfigFilePath $DIR/src/config.temp.json
   yarn build_to_el
@@ -116,9 +119,9 @@ el:build() {
   download:saki-ui
   download:meow-apps
 
-  cp -r ./build ./src/electron/build
+  cp -r ./build ./electron/build
 
-  cd ./src/electron
+  cd ./electron
 
   mkdir -p ./el-build/packages
   cp -r ./el-build/*.AppImage ./el-build/packages/
@@ -130,21 +133,21 @@ el:build() {
   rm -rf ./el-build/*.deb
   rm -rf ./el-build/*.exe
   yarn el:build-win
-  yarn el:build-linux
+  # yarn el:build-linux
   rm -rf ./build
 
   # Meow Sticky Note Setup 1.0.1.exe
   # Meow Sticky Note-1.0.1.AppImage
   # meow-sticky-note_1.0.1_amd64.deb
-  mv "./el-build/Meow Sticky Note Setup "$version".exe" \
+  mv "./el-build/Meow Whisper Setup "$version".exe" \
     ./el-build/$appName-v$version-win-x64.exe
-  mv "./el-build/Meow Sticky Note-"$version".AppImage" \
+  mv "./el-build/Meow Whisper-"$version".AppImage" \
     ./el-build/$appName-v$version-linux-x64.AppImage
-  mv "./el-build/meow-sticky-note_"$version"_amd64.deb" \
+  mv "./el-build/meow-whisper_"$version"_amd64.deb" \
     ./el-build/$appName-v$version-linux-amd64-x64.deb
 
   rm -rf ./el-build/*.exe.blockmap
-  cd ../../
+  cd ../
 
   # el:install
   # el:run

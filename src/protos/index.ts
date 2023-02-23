@@ -2,7 +2,6 @@ import * as nyanyalog from 'nyanyajs-log'
 import { Buffer } from 'buffer'
 import Long from 'long'
 import protoRoot from './proto'
-import { request } from '@nyanyajs/utils'
 import { ResponseDecode, Request } from './request'
 import { socketio } from './socketioCoding'
 export const PARAMS = <T = any>(data: T, proto: T | any) => {

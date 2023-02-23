@@ -53,8 +53,8 @@ if (origin === 'file://') {
 interface Config {
 	version: typeof version
 	sakisso: typeof sakisso
-	serverApi: typeof serverApi
-	nsocketio: typeof nsocketio
+	// serverApi: typeof serverApi
+	// nsocketio: typeof nsocketio
 	staticPathDomain: typeof staticPathDomain
 	networkTestUrl: typeof networkTestUrl
 	sakiui: typeof sakiui
@@ -69,10 +69,10 @@ try {
 	if (configJson) {
 		version = pkg.version
 		sakisso = configJson.sakisso
-		serverApi = configJson.serverApi
-		nsocketio = configJson.nsocketio
+		// serverApi = configJson.serverApi
+		// nsocketio = configJson.nsocketio
 		staticPathDomain = configJson.staticPathDomain
-		networkTestUrl = configJson.networkTestUrl || configJson.serverApi.apiUrl
+		networkTestUrl = configJson.networkTestUrl || configJson.meowWhisperCore.url
 		sakiui = configJson.sakiui
 		meowApps = configJson.meowApps
 		meowWhisperCore = configJson.meowWhisperCore
@@ -83,12 +83,12 @@ try {
 }
 export {
 	version,
-	serverApi,
+	// serverApi,
 	sakiui,
 	staticPathDomain,
 	networkTestUrl,
 	sakisso,
-	nsocketio,
+	// nsocketio,
 	origin,
 	meowApps,
 	meowWhisperCore,

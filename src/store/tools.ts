@@ -16,6 +16,8 @@ import { snackbar } from '@saki-ui/core'
 import { FriendItem } from './contacts'
 import createSocketioRouter from '../modules/socketio/router'
 import { GroupCache } from './group'
+import { t } from 'i18next'
+import { api } from '../modules/electron/api'
 
 export const modeName = 'tools'
 // export let meowWhisperCoreSDK: MeowWhisperCoreSDK | undefined
@@ -73,21 +75,34 @@ export const toolsMethods = {
 			body: string
 			icon?: string
 			sound?: boolean
+			timeout?: number
 		},
 		{
 			state: RootState
 		}
 	>(
 		modeName + '/sendNotification',
-		async ({ title, body, icon, sound }, thunkAPI) => {
+		async ({ title, body, icon, sound, timeout }, thunkAPI) => {
 			const { mwc, contacts, group, user } = thunkAPI.getState()
+
+			console.log('发送通知')
 			const n = new Notification(title, {
 				body: body,
 				icon: icon || '/logo192.png',
-				timestamp: 13131,
+				timestamp: 2,
 			})
+
 			if (sound) {
 				console.log('发送声音消息')
+			}
+			n.onclick = () => {
+				console.log('点击了通知')
+				api.showWindow()
+			}
+			if (timeout !== 0) {
+				setTimeout(() => {
+					n.close()
+				}, timeout || 5000)
 			}
 		}
 	),
@@ -106,5 +121,26 @@ export const toolsMethods = {
 			backgroundColor: 'var(--saki-default-color)',
 			color: '#fff',
 		}).open()
+	}),
+	copy: createAsyncThunk<
+		void,
+		{
+			content: string
+		},
+		{
+			state: RootState
+		}
+	>(modeName + '/copy', async ({ content }, thunkAPI) => {
+		snackbar({
+			message: t('copySuccessfully', {
+				ns: 'common',
+			}),
+			autoHideDuration: 2000,
+			vertical: 'top',
+			horizontal: 'center',
+			backgroundColor: 'var(--saki-default-color)',
+			color: '#fff',
+		}).open()
+		window.navigator.clipboard.writeText(content)
 	}),
 }

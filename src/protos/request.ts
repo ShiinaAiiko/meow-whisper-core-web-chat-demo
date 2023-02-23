@@ -3,14 +3,14 @@ import {
 	ResponseData,
 	Response,
 	requestConfig,
-	request,
-} from '@nyanyajs/utils/dist/request'
+	NRequest,
+} from '@nyanyajs/utils/dist/nrequest'
 import { Buffer } from 'buffer'
 // import { ResponseData, Response, requestConfig,request } from '../modules/request'
 import { FoeEachLongToNumber } from '.'
 import store from '../store'
 import protoRoot from './proto'
-
+const nrequest = new NRequest()
 export const ResponseDecode = <T = any>(
 	response: Response,
 	proto: T | any
@@ -52,7 +52,7 @@ export const Request = async <T = any>(config: requestConfig, proto: any) => {
 		resquestEncryption: false,
 		responseEncryption: false,
 	}
-	return ResponseDecode<T>(await request(config), proto)
+	return ResponseDecode<T>(await nrequest.request(config), proto)
 }
 
 // export default {}

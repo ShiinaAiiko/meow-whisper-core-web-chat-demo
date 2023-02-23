@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { bindEvent } from '../modules/bindEvent'
 
 import { useSelector, useDispatch } from 'react-redux'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import store, {
 	RootState,
 	AppDispatch,
@@ -19,9 +19,11 @@ import { SyncOff } from './Icon'
 import { protoRoot } from '../protos'
 import { FriendItem } from '../store/contacts'
 import { deepCopy } from '@nyanyajs/utils'
+import MeowWhisperCoreSDK from '../modules/MeowWhisperCoreSDK'
+import { Query } from '../modules/methods'
 
 const UserInfoComponent = () => {
-	const { t, i18n } = useTranslation('index-header')
+	const { t, i18n } = useTranslation('modal')
 	const config = useSelector((state: RootState) => state.config)
 	const contacts = useSelector((state: RootState) => state.contacts)
 	const mwc = useSelector((state: RootState) => state.mwc)
@@ -30,7 +32,7 @@ const UserInfoComponent = () => {
 
 	const [activeTabLabel, setActiveTabLabel] = useState('')
 	const [uInfo, setUInfo] = useState<FriendItem>()
-	const [isFriend, setIsFriend] = useState<boolean>()
+	const [isFriend, setIsFriend] = useState<boolean>(false)
 	const [allowWatchContactList, setAllowWatchContactList] = useState(false)
 	const [members, setMembers] = useState<protoRoot.group.IGroupMembers[]>([])
 	const [membersLoading, setMembersLoading] = useState('loading')
@@ -38,7 +40,8 @@ const UserInfoComponent = () => {
 	const dispatch = useDispatch<AppDispatch>()
 
 	const location = useLocation()
-	const history = useNavigate()
+	const navigate = useNavigate()
+	const [searchParams] = useSearchParams()
 
 	useEffect(() => {
 		if (config.modal.userId) {
@@ -71,7 +74,7 @@ const UserInfoComponent = () => {
 
 		const res = await dispatch(
 			methods.contacts.getContactInfo({
-				uid: config.modal.userId,
+				userId: config.modal.userId,
 			})
 		).unwrap()
 		// console.log(res)
@@ -124,7 +127,7 @@ const UserInfoComponent = () => {
 		setAllowWatchContactList(true)
 		await dispatch(
 			methods.contacts.addContact({
-				uid: config.modal.userId,
+				userId: config.modal.userId,
 				remark: '',
 			})
 		)
@@ -157,7 +160,7 @@ const UserInfoComponent = () => {
 						},
 					})}
 					close-icon
-					title='User Info'
+					title={t('userInfo')}
 				></saki-modal-header>
 				<div className='uic-container'>
 					<div className='uic-header'>
@@ -184,7 +187,9 @@ const UserInfoComponent = () => {
 											</div>
 											{(uInfo?.lastMessageTime || 0) > 0 ? (
 												<div className='uic-h-i-memebers'>
-													{'last message time ' + uInfo?.lastMessageTime}
+													{MeowWhisperCoreSDK.methods.getLastSeenTime(
+														Number(uInfo?.userInfo?.lastSeenTime)
+													) || uInfo?.userInfo?.bio}
 												</div>
 											) : (
 												''
@@ -194,38 +199,30 @@ const UserInfoComponent = () => {
 								</saki-row>
 							</saki-col>
 							<saki-col justify-content='flex-end' span={0}>
-								{isFriend ? (
-									<saki-button
-										width='50px'
-										height='50px'
-										type='CircleIconGrayHover'
-									>
-										<saki-icon
-											width='20px'
-											height='20px'
-											type='Pen'
-											color='#999'
-										></saki-icon>
-									</saki-button>
-								) : (
-									<saki-button
-										ref={bindEvent({
-											tap: () => {
-												addContact()
-											},
-										})}
-										width='50px'
-										height='50px'
-										type='CircleIconGrayHover'
-									>
-										<saki-icon
-											width='20px'
-											height='20px'
-											type='AddUser'
-											color='#999'
-										></saki-icon>
-									</saki-button>
-								)}
+								<saki-button
+									ref={bindEvent({
+										tap: () => {
+											console.log('isfriend', isFriend)
+											// addContact()
+										},
+									})}
+									style={{
+										display:
+											!isFriend && user.userInfo.uid !== config.modal.userId
+												? 'block'
+												: 'none',
+									}}
+									width='50px'
+									height='50px'
+									type='CircleIconGrayHover'
+								>
+									<saki-icon
+										width='20px'
+										height='20px'
+										type='AddUser'
+										color='#999'
+									></saki-icon>
+								</saki-button>
 							</saki-col>
 						</saki-row>
 					</div>
@@ -246,7 +243,7 @@ const UserInfoComponent = () => {
 							},
 						})}
 					>
-						<saki-tabs-item font-size='14px' label='Info' name={'Info'}>
+						<saki-tabs-item font-size='14px' label='Info' name={t('info')}>
 							<saki-scroll-view mode='Inherit'>
 								<div className='uic-info-page'>
 									<saki-card hide-title hide-subtitle>
@@ -255,7 +252,7 @@ const UserInfoComponent = () => {
 											color='default'
 											margin='10px 0 10px 0'
 										>
-											UID
+											{t('uid')}
 										</saki-title>
 										<div>{uInfo?.userInfo?.uid}</div>
 										<saki-title
@@ -263,11 +260,16 @@ const UserInfoComponent = () => {
 											color='default'
 											margin='10px 0 10px 0'
 										>
-											Bio
+											{t('bio')}
 										</saki-title>
-										<div>{uInfo?.userInfo?.bio || '什么都没有写'}</div>
+										<div>
+											{uInfo?.userInfo?.bio ||
+												t('nothingIsWritten', {
+													ns: 'common',
+												})}
+										</div>
 									</saki-card>
-									{isFriend ? (
+									{isFriend || user.userInfo.uid === config.modal.userId ? (
 										<saki-row
 											margin='30px 0 0 0'
 											align-items='center'
@@ -276,7 +278,31 @@ const UserInfoComponent = () => {
 											<saki-col>
 												<saki-button
 													ref={bindEvent({
-														tap: () => {},
+														tap: () => {
+															dispatch(
+																methods.messages.setChatDialogue({
+																	roomId: uInfo?.id || '',
+																	type: 'Contact',
+																	id: uInfo?.userInfo?.uid || '',
+																	showMessageContainer: true,
+																	unreadMessageCount: -2,
+																	sort: -1,
+																})
+															)
+															navigate?.(
+																Query(
+																	'/',
+																	{
+																		roomId: uInfo?.id || '',
+																	},
+																	searchParams
+																),
+																{
+																	replace: !!searchParams.get('roomId'),
+																}
+															)
+															dispatch(configSlice.actions.setModalUserId(''))
+														},
 													})}
 													width='160px'
 													padding='8px 0px'
@@ -284,13 +310,25 @@ const UserInfoComponent = () => {
 													font-size='14px'
 													type='Primary'
 												>
-													Send message
+													{t('sendMessage', {
+														ns: 'common',
+													})}
 												</saki-button>
 											</saki-col>
 											<saki-col>
 												<saki-button
 													ref={bindEvent({
-														tap: () => {},
+														tap: () => {
+															dispatch(
+																methods.tools.copy({
+																	content:
+																		window.location.origin +
+																		'/invite/' +
+																		uInfo?.userInfo?.uid +
+																		'?t=0',
+																})
+															)
+														},
 													})}
 													width='160px'
 													padding='8px 0px'
@@ -298,7 +336,9 @@ const UserInfoComponent = () => {
 													font-size='14px'
 													type='Normal'
 												>
-													Share
+													{t('share', {
+														ns: 'common',
+													})}
 												</saki-button>
 											</saki-col>
 										</saki-row>
@@ -321,7 +361,9 @@ const UserInfoComponent = () => {
 													font-size='14px'
 													type='Primary'
 												>
-													Add contact
+													{t('addContact', {
+														ns: 'contactsPage',
+													})}
 												</saki-button>
 											</saki-col>
 										</saki-row>
@@ -329,7 +371,11 @@ const UserInfoComponent = () => {
 								</div>
 							</saki-scroll-view>
 						</saki-tabs-item>
-						<saki-tabs-item font-size='14px' label='Settings' name={'Settings'}>
+						<saki-tabs-item
+							font-size='14px'
+							label='Settings'
+							name={t('settings')}
+						>
 							<saki-scroll-view mode='Inherit'>
 								<div className='uic-settings-page'>
 									<saki-row
@@ -338,7 +384,7 @@ const UserInfoComponent = () => {
 										flex-direction='column'
 									>
 										<saki-col>
-											{isFriend ? (
+											{isFriend && user.userInfo.uid !== config.modal.userId ? (
 												<saki-button
 													ref={bindEvent({
 														tap: async () => {
@@ -357,7 +403,9 @@ const UserInfoComponent = () => {
 													color='var(--saki-default-color)'
 													type='Normal'
 												>
-													Delete
+													{t('delete', {
+														ns: 'common',
+													})}
 												</saki-button>
 											) : (
 												''

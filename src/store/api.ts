@@ -14,7 +14,7 @@ import { getI18n } from 'react-i18next'
 import { stringify } from 'querystring'
 import { resolve } from 'path'
 import { nanoid } from 'nanoid'
-import { serverApi } from '../config'
+import { meowWhisperCore } from '../config'
 
 export const modeName = 'api'
 
@@ -27,7 +27,7 @@ export const apiMethods = {
 export const apiSlice = createSlice({
 	name: modeName,
 	initialState: {
-		apiUrl: serverApi.apiUrl,
+		apiUrl: meowWhisperCore.url,
 		apiNames: {
 			v1: {
 				baseUrl: '/api/v1',

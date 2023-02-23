@@ -1,9 +1,23 @@
 import { LocalCache, WebStorage } from '@nyanyajs/utils'
+import {
+	// WebStorage,
+	StorageOptions,
+} from '@nyanyajs/utils/dist/webStorage'
 
 export const cacheInit = () => {
+	let isElectron = !!(
+		window &&
+		window.process &&
+		window.process.versions &&
+		window.process.versions['electron']
+	)
+	let storageStr: StorageOptions['storage'] = 'IndexedDB'
+	if (isElectron) {
+		storageStr = 'ElectronNodeFsStorage'
+	}
 	const cache = {
 		storage: new WebStorage<string, any>({
-			storage: 'IndexedDB',
+			storage: storageStr,
 			baseLabel: 'MWC-Cache',
 		}),
 		mapStorage: new LocalCache<string, any>({

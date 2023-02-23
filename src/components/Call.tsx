@@ -20,22 +20,17 @@ import { eventTarget } from '../store/config'
 import { SyncOff } from './Icon'
 import * as Ion from 'ion-sdk-js/lib/connector'
 import moment from 'moment'
-import {
-	SFUClient,
-	SFUSignal,
-	SFUStream,
-} from '../modules/MeowWhisperCoreSDK/ionSfuSdk'
+import { SFUClient, SFUSignal, SFUStream } from '@nyanyajs/utils/dist/ionSfuSdk'
 import { Stream } from 'stream'
 import { getDialogueInfo } from '../modules/methods'
 import { deepCopy, QueueLoop } from '@nyanyajs/utils'
 import { meowWhisperCore } from '../config'
 
 const CallComponent = () => {
-	const { t, i18n } = useTranslation('index-header')
+	const { t, i18n } = useTranslation('call')
 	const call = useSelector((state: RootState) => state.call)
 	const config = useSelector((state: RootState) => state.config)
 	const mwc = useSelector((state: RootState) => state.mwc)
-	const nsocketio = useSelector((state: RootState) => state.nsocketio)
 	const appStatus = useSelector((state: RootState) => state.config.status)
 	const user = useSelector((state: RootState) => state.user)
 
@@ -54,122 +49,37 @@ const CallComponent = () => {
 
 	const newCall = async () => {
 		try {
-			let s: SFUSignal | undefined = call.signal
-			dispatch(callSlice.actions.setStatus(-1))
+			let count = 0
 
-			if (!call.options.callToken) return
-
-			console.log('turnserver', call.options.turnServer)
-			let webrtc = {
-				url: meowWhisperCore.webrtc.url,
-				options: {
-					codec: 'vp8',
-					iceServers: [
-						{
-							urls: call.options.turnServer.urls,
-							username: call.options.turnServer.username,
-							credential: call.options.turnServer.credential,
-						},
-					],
-				},
+			if (
+				call.options.participatingUsers.filter((v) => {
+					return v.caller && v.uid === user.userInfo.uid
+				}).length
+			) {
+				queueloop.increase(
+					're-invite',
+					async () => {
+						count++
+						if (count >= 30) {
+							hangup()
+							return
+						}
+						if (count % 3 === 0) {
+							console.log('开始重新邀请')
+							await mwc.sdk?.api.message.startCalling({
+								roomId: call.options.roomId,
+								type: call.options.type,
+								participants: call.options.participatingUsers,
+							})
+						}
+					},
+					{
+						loop: true,
+					}
+				)
 			}
-			// if (!s) {
-			s = new SFUSignal(webrtc.url, {
-				token: call.options.callToken,
-				deviceId: user.deviceId,
-				uid: user.userInfo.uid,
-				userAgent: user.userAgent,
-				userInfo: {
-					uid: user.userInfo.uid,
-					avatar: user.userInfo.avatar,
-					username: user.userInfo.nickname,
-					nickname: user.userInfo.nickname,
-				},
-				customData: {
-					appId: meowWhisperCore.appId,
-					uid: user.userInfo.uid,
-					roomId: call.options.roomId,
-				},
-			})
-			dispatch(callSlice.actions.setSignal(s))
 
-			console.log('call', s)
-			// }
-			const c = s.createClient(call.options.roomId, webrtc.options as any)
-			// const c = s.createClient('ion', webrtc.options as any)
-			console.log('使用的roomId：', call.options.roomId, webrtc.options as any)
-			dispatch(callSlice.actions.setClient(c))
-
-			const gmd = await c.getMediaDevices()
-			if (!gmd) {
-				snackbar({
-					message: '音视频获取失败，无法进行通讯',
-					autoHideDuration: 2000,
-					vertical: 'top',
-					horizontal: 'center',
-					backgroundColor: 'var(--saki-default-color)',
-					color: '#fff',
-				}).open()
-				return
-			}
-			let audioTemp = false
-			let videoTemp = false
-			const md = gmd
-				.filter((d) => {
-					return d.kind === 'audioinput' || d.kind === 'videoinput'
-				})
-				.map((v) => {
-					const item = {
-						deviceId: v.deviceId,
-						groupId: v.groupId,
-						kind: v.kind,
-						label: v.label,
-						subtitle: '',
-					}
-					if (v.kind === 'audioinput') {
-						!audioTemp && (item.subtitle = 'Audio')
-						audioTemp = true
-					}
-					if (v.kind === 'videoinput') {
-						!videoTemp && (item.subtitle = 'Video')
-						videoTemp = true
-					}
-					c.onStream = (stream) => {
-						onStream(stream)
-					}
-
-					// console.log('mediaDevices', item)
-					return item
-				})
-
-			dispatch(callSlice.actions.setMediaDevicesList(md))
-			console.log('call', c, md, call.options.roomId)
-
-			const api = c.DataChannelAPI()
-
-			api.emit('connected', {
-				uid: user.userInfo.uid,
-			})
-			api.router('connected', (data) => {
-				console.log('callconnected', data)
-
-				if (data.data.uid !== user.userInfo.uid) {
-					callConnected()
-				}
-			})
-
-			if (call.options.type === 'ScreenShare') {
-				if (
-					call.options.participatingUsers.filter((v) => v.caller)?.[0].uid ===
-					user.userInfo.uid
-				) {
-					dispatch(callSlice.actions.publish(call.options.type))
-				} else {
-					dispatch(callSlice.actions.publish('Audio'))
-				}
-			} else {
-				dispatch(callSlice.actions.publish(call.options.type))
-			}
+			dispatch(methods.call.connect(true))
 		} catch (error) {
 			console.log(error)
 		}
@@ -182,13 +92,24 @@ const CallComponent = () => {
 		}
 	}, [call.enable])
 	useEffect(() => {
+		console.log('config.notification.callSound', config.notification.callSound)
 		if (call.enable) {
 			switch (call.status) {
 				case -1:
-					call.sound.play()
+					config.notification.callSound && call.sound.play()
 					break
 				case 0:
-					call.sound.stop()
+					queueloop.decrease('re-invite')
+					config.notification.callSound && call.sound.stop()
+
+					call.time.startTime &&
+						queueloop.increase(
+							'setCallCurrentTimestamp',
+							setCallCurrentTimestamp,
+							{
+								loop: true,
+							}
+						)
 					break
 
 				default:
@@ -196,6 +117,40 @@ const CallComponent = () => {
 			}
 		}
 	}, [call.status])
+
+	useEffect(() => {
+		if (call.reconnectionCount >= 3) {
+			console.log('开始挂断', call.reconnectionCount)
+			// hangup()
+		}
+		console.log('重连中')
+		console.log(
+			'连接次数',
+			Object.keys(call.connectionQualityStats).length &&
+				Object.keys(call.connectionQualityStats)
+					.map((v) => {
+						return call.connectionQualityStats[v]?.count?.connected
+					})
+					?.reduce((p, c) => {
+						return p + c
+					})
+		)
+		console.log(
+			'中断次数',
+			Object.keys(call.connectionQualityStats).length &&
+				Object.keys(call.connectionQualityStats)
+					.map((v) => {
+						return call.connectionQualityStats[v]?.count?.disconnect
+					})
+					?.reduce((p, c) => {
+						return p + c
+					})
+		)
+	}, [call.reconnectionCount])
+
+	useEffect(() => {
+		console.log('call.deviceStatus', call.deviceStatus)
+	}, [call.deviceStatus])
 
 	const setCallCurrentTimestamp = () => {
 		dispatch(
@@ -213,44 +168,6 @@ const CallComponent = () => {
 	const hangup = () => {
 		queueloop.decreaseAll()
 		dispatch(methods.call.hangup(true))
-	}
-
-	const callConnected = () => {
-		const { call } = store.getState()
-		if (call.status !== -1) {
-			return
-		}
-		dispatch(
-			callSlice.actions.setTime({
-				type: 'startTime',
-				value: Math.floor(new Date().getTime() / 1000),
-			})
-		)
-
-		queueloop.increase('setCallCurrentTimestamp', setCallCurrentTimestamp, {
-			loop: true,
-		})
-
-		// callModal.setCallStartTimestamp()
-		// queueloop.decrease('waiting')
-
-		dispatch(callSlice.actions.setStatus(0))
-	}
-
-	const onStream = (stream: SFUStream) => {
-		dispatch(methods.call.addStream(stream))
-		const { call } = store.getState()
-		console.log('onStream', stream, call.client, call.signal)
-
-		if (
-			// true ||
-			// stream.clientInfo.uid !== user.userInfo.uid &&
-			call.status === -1 &&
-			call.streams.filter((s) => s.stream && s.stream.type === 'Remote')
-				.length >= 1
-		) {
-			callConnected()
-		}
 	}
 
 	const getTime = (second: number = 0) => {
@@ -283,16 +200,33 @@ const CallComponent = () => {
 	const formatDeviceSubtitle = (kind: string) => {
 		switch (kind) {
 			case 'Audio':
-				return 'Audio'
+				return t('audio')
 			case 'Video':
-				return 'Video'
+				return t('video')
 			case 'ScreenShare':
-				return 'Screen share'
+				return t('screenShare')
 
 			default:
 				return ''
 		}
 	}
+
+	const connectionStatus = (s: SFUStream, v: any) => {
+		console.log('connectionStatus', s, v)
+		// s.setStatus(v)
+		// dispatch(
+		// 	callSlice.actions.setStreamStatus({
+		// 		s,
+		// 		v,
+		// 	})
+		// )
+	}
+
+	const repushStream = (s: SFUStream) => {
+		// console.log('repushStream', s.id, s)
+		// s.republish()
+	}
+
 	return (
 		<>
 			{/* modal部分 */}
@@ -325,10 +259,10 @@ const CallComponent = () => {
 							})}
 							center-text={
 								call.status === -2
-									? 'Hanging up...'
+									? t('hangingUp')
 									: call.status === 0
 									? getTime(call.time.currentTime - call.time.startTime)
-									: 'Awaiting response...'
+									: t('awaitingResponse')
 							}
 						>
 							<div className='call-h-right' slot='right'>
@@ -340,7 +274,10 @@ const CallComponent = () => {
 												fontSize: '12px',
 											}}
 										>
-											{call.options.participatingUsers.length} members
+											{call.options.participatingUsers.length}{' '}
+											{t('members', {
+												ns: 'modal',
+											})}
 										</div>
 									</saki-col>
 									<saki-col margin='0 0 0 6px'>
@@ -390,8 +327,15 @@ const CallComponent = () => {
 													console.log(e)
 													changeStreamId(e)
 												},
+												connectionStatus: (e) => {
+													v.stream && connectionStatus(v.stream, e.detail)
+												},
+												repushStream: () => {
+													v.stream && repushStream(v.stream)
+												},
 											})}
 											key={i}
+											background-color='#272822'
 											stream-id={v.stream?.id}
 										></saki-call-main-video>
 									)
@@ -399,11 +343,25 @@ const CallComponent = () => {
 						</div>
 					</div>
 					<div className='call-info' slot='call-info'>
-						{call.status === -1 ? (
+						{(call.status === -1 ||
+							(call.deviceStatus.video || call.deviceStatus.screenShare
+								? false
+								: false)) &&
+						info?.userInfo?.nickname ? (
 							<saki-call-info
-								avatar={info.userInfo?.avatar}
-								nickname={info.userInfo?.nickname}
+								avatar={info?.userInfo?.avatar}
+								nickname={info?.userInfo?.nickname}
 							></saki-call-info>
+						) : (
+							''
+						)}
+					</div>
+					<div className='call-hint' slot='call-hint'>
+						{(call.reconnectionTime > 0 && call.status !== -1) ||
+						call.status === -2 ? (
+							<div className='network-status'>
+								{call.status === -2 ? '聊天已结束' : '网络异常，正在重连'}
+							</div>
 						) : (
 							''
 						)}
@@ -431,10 +389,17 @@ const CallComponent = () => {
 												)
 												// call.switchMainVideoStream(item.stream?.id)
 											},
+											connectionStatus: (e) => {
+												v.stream && connectionStatus(v.stream, e.detail)
+											},
+											repushStream: () => {
+												v.stream && repushStream(v.stream)
+											},
 										})}
 										key={i}
 										width='160px'
 										height='90px'
+										background-color='#272822'
 										stream-id={v?.stream?.id || ''}
 										avatar={v.userInfo.avatar}
 										avatar-text={v.userInfo.nickname}
@@ -619,7 +584,7 @@ const CallComponent = () => {
 							nickname={info.userInfo?.nickname}
 							button-text='Hang Up'
 						>
-							{call.streams
+							{/* {call.streams
 								.filter((s) => s?.isMinimize)
 								.map((v, i) => {
 									return (
@@ -629,12 +594,19 @@ const CallComponent = () => {
 													console.log(e)
 													changeStreamId(e)
 												},
+												connectionStatus: (e) => {
+													v.stream && connectionStatus(v.stream, e.detail)
+												},
+												repushStream: () => {
+													v.stream && repushStream(v.stream)
+												},
 											})}
 											key={i}
+											background-color='#272822'
 											stream-id={v.stream?.id}
 										></saki-call-main-video>
 									)
-								})}
+								})} */}
 						</saki-call-floating>
 					</div>
 				</saki-floating-container>

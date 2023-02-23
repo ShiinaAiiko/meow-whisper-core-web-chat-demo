@@ -25,6 +25,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { config } from 'process'
 
 import * as buffer from 'buffer'
+import { storage } from './store/storage'
 
 if (typeof (window as any).global === 'undefined') {
 	;(window as any).global = window
@@ -100,6 +101,16 @@ function App() {
 	useEffect(() => {
 		debounce.increase(async () => {
 			store.dispatch(storageSlice.actions.init('0'))
+			await store.dispatch(methods.tools.init()).unwrap()
+			await store.dispatch(methods.config.Init()).unwrap()
+			store.dispatch(methods.mwc.Init()).unwrap()
+			await store.dispatch(methods.user.Init()).unwrap()
+			await store.dispatch(methods.sso.Init()).unwrap()
+			await store.dispatch(methods.user.checkToken()).unwrap()
+			// dispatch(methods.appearance.Init()).unwrap()
+			// console.log('location', location)
+			// console.log('config.deviceType getDeviceType', config)
+
 			// console.log('process.env.NODE_ENV', process.env.NODE_ENV)
 			if (
 				window &&
@@ -137,12 +148,12 @@ function App() {
 			}
 
 			window.addEventListener('focus', () => {
-        console.log('focus')
-        store.dispatch(configSlice.actions.setInApp(true))
+				console.log('focus')
+				store.dispatch(configSlice.actions.setInApp(true))
 			})
 			window.addEventListener('blur', () => {
 				console.log('blur')
-        store.dispatch(configSlice.actions.setInApp(false))
+				store.dispatch(configSlice.actions.setInApp(false))
 			})
 
 			window.addEventListener('resize', () => {

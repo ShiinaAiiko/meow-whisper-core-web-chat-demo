@@ -24,19 +24,22 @@ const JoinGroupComponent = ({
 	visible: boolean
 	onChange: (visible: boolean) => void
 }) => {
-	const { t, i18n } = useTranslation('index-header')
+	const { t, i18n } = useTranslation('modal')
 	const config = useSelector((state: RootState) => state.config)
 	const mwc = useSelector((state: RootState) => state.mwc)
 	const appStatus = useSelector((state: RootState) => state.config.status)
 	const user = useSelector((state: RootState) => state.user)
 
-	const [groupId, setGroupId] = useState('EESB5DUxcnBuDpsvJKZneZ')
+	const [groupId, setGroupId] = useState('')
 
 	const dispatch = useDispatch<AppDispatch>()
 
 	const location = useLocation()
 	const history = useNavigate()
 
+	useEffect(() => {
+		setGroupId('')
+	}, [visible])
 	const searchGroup = async () => {
 		const getGroup = await mwc.sdk?.api.group.getGroupInfo({
 			groupId,
@@ -48,7 +51,7 @@ const JoinGroupComponent = ({
 				await dispatch(
 					methods.group.joinGroup({
 						groupId,
-						uid: user.userInfo.uid,
+						uid: [user.userInfo.uid],
 						remark: '',
 					})
 				).unwrap()
@@ -84,14 +87,16 @@ const JoinGroupComponent = ({
 					},
 				})}
 				close-icon
-				title='Join group'
+				title={t('joinGroup', {
+					ns: 'contactsPage',
+				})}
 			></saki-modal-header>
 			<div className={'join-group-component ' + config.deviceType}>
 				<div className='jgd-input'>
 					<saki-input
 						type='Text'
 						height='56px'
-						placeholder='Group id'
+						placeholder={t('groupId')}
 						placeholder-animation='MoveUp'
 						value={groupId}
 						ref={bindEvent({
@@ -114,7 +119,9 @@ const JoinGroupComponent = ({
 						font-size='14px'
 						type='Primary'
 					>
-						Join
+						{t('join', {
+							ns: 'common',
+						})}
 					</saki-button>
 				</div>
 			</div>

@@ -54,7 +54,7 @@ const SelectMembersComponent = ({
 	const { t, i18n } = useTranslation('index-header')
 	const config = useSelector((state: RootState) => state.config)
 	const contacts = useSelector((state: RootState) => state.contacts)
-	const nsocketio = useSelector((state: RootState) => state.nsocketio)
+	
 	const appStatus = useSelector((state: RootState) => state.config.status)
 	const user = useSelector((state: RootState) => state.user)
 
@@ -100,7 +100,9 @@ const SelectMembersComponent = ({
 					})}
 					value={keyword}
 					padding='16px 0'
-					placeholder='Search'
+					placeholder={t('search', {
+						ns: 'common',
+					})}
 					close-icon
 					type='Search'
 				></saki-input>

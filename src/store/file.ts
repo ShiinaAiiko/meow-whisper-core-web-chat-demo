@@ -16,6 +16,7 @@ import { snackbar } from '@saki-ui/core'
 import { FriendItem } from './contacts'
 import createSocketioRouter from '../modules/socketio/router'
 import { GroupCache } from './group'
+import { CustomStickersItem } from './emoji'
 
 export const modeName = 'file'
 // export let meowWhisperCoreSDK: MeowWhisperCoreSDK | undefined
@@ -43,20 +44,8 @@ export const fileMethods = {
 			reader.onload = async (e) => {
 				if (!e.target?.result) return
 				const hash = getHash(e.target.result)
-				console.log('hash', hash)
-				console.log('file', file)
-				// lastModified: 1659813176641
-				// lastModifiedDate: Sun Aug 07 2022 03:12:56 GMT+0800 (China Standard Time) {}
-				// name: "PngItem_1211108.png"
-				// size: 11202
-				// type: "image/png"
-				// webkitRelativePath: ""
-				// string name = 1;
-				// int64 size = 2;
-				// string type = 3;
-				// string Suffix = 4;
-				// int64 LastModified = 5;
-				// string Hash = 6;
+				// console.log('hash', hash)
+				// console.log('file', file)
 				const res = await mwc.sdk?.api.file.getUploadFileToken({
 					fileInfo: {
 						name: file.name,
@@ -67,7 +56,7 @@ export const fileMethods = {
 						hash: hash,
 					},
 				})
-				console.log('getUploadToken', res)
+				// console.log('getUploadToken', res)
 				if (res?.code === 200) {
 					//         apiUrl: "http://192.168.0.106:16100/api/v1/chunkupload/upload"
 					// chunkSize: 262144
@@ -101,7 +90,7 @@ export const fileMethods = {
 							},
 							async onsuccess(options) {
 								console.log(options)
-								resolve(data.urls?.domainUrl + data.urls?.encryptionUrl)
+								resolve(data.urls?.domainUrl + options.encryptionUrl)
 								// await store.state.storage.staticFileWS?.getAndSet(
 								// 	upload.data.urls?.encryptionUrl || '',
 								// 	async (v) => {
@@ -120,8 +109,8 @@ export const fileMethods = {
 								// 	dialogId,
 								// })
 							},
-							onerror() {
-								console.log('error')
+							onerror(err) {
+								console.log('error', err)
 								// store.dispatch('chat/failedToSendMessage', {
 								// 	messageId,
 								// 	dialogId,
@@ -133,6 +122,74 @@ export const fileMethods = {
 					}
 				}
 			}
+			reader.readAsArrayBuffer(file)
+		})
+	}),
+	uploadCustomStickersFile: createAsyncThunk<
+		string,
+		{
+			cs: CustomStickersItem[]
+		},
+		{
+			state: RootState
+		}
+	>(modeName + '/uploadCustomStickersFile', ({ cs }, thunkAPI) => {
+		return new Promise(async (resolve, reject) => {
+			const { config, mwc, user } = thunkAPI.getState()
+			const { getHash, uploadFile } = SAaSS
+
+			// console.log('uploadCustomStickersFile', cs)
+			const blob = new Blob([
+				JSON.stringify({
+					list: cs,
+				}),
+			])
+			const file = new File(
+				[blob],
+				md5(user.userInfo.uid + '_CustomStickers') + '.json',
+				{
+					type: 'application/json',
+				}
+			)
+			// console.log(file)
+			let reader = new FileReader()
+			reader.onload = async (e) => {
+				if (!e.target?.result) return
+				const hash = getHash(e.target.result)
+				// console.log('hash', hash)
+				// console.log('file', file)
+
+				const res = await mwc.sdk?.api.file.getCustomStickersUploadFileToken({
+					size: file.size,
+					hash,
+				})
+				// console.log('getCustomStickersUploadFileToken', res)
+				if (res?.code === 200) {
+					const data: any = res.data
+					if (data.token) {
+						uploadFile({
+							file: file,
+							url: data.apiUrl,
+							token: data.token,
+							chunkSize: data.chunkSize,
+							uploadedOffset: data.uploadedOffset || [],
+							async onprogress(options) {
+								// console.log(options)
+							},
+							async onsuccess(options) {
+								// console.log(options)
+								resolve(data.urls?.domainUrl + options.encryptionUrl)
+							},
+							onerror(err) {
+								console.log('error', err)
+							},
+						})
+					} else {
+						resolve(data.urls?.domainUrl + data.urls?.encryptionUrl)
+					}
+				}
+			}
+
 			reader.readAsArrayBuffer(file)
 		})
 	}),

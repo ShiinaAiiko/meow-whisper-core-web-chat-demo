@@ -1,5 +1,5 @@
 import { protoRoot } from '../protos'
-import store from '../store'
+import store, { methods } from '../store'
 import qs from 'qs'
 
 export const getDialogueInfo = (v: any) => {
@@ -52,4 +52,8 @@ export const Query = (
 			)
 		)
 	)
+}
+
+export const getUnix = () => {
+	return Math.round(new Date().getTime() / 1000)
 }

@@ -11,6 +11,7 @@ import store, {
 	configSlice,
 	userSlice,
 	messagesSlice,
+	emojiSlice,
 } from '../store'
 import './MessageContainer.scss'
 import { useTranslation } from 'react-i18next'
@@ -22,9 +23,10 @@ import { Debounce, validation } from '@nyanyajs/utils'
 import { protoRoot } from '../protos'
 import { FriendItem } from '../store/contacts'
 import SelectMembersComponent from './SelectMembers'
-import { getDialogueInfo, Query } from '../modules/methods'
+import { getDialogueInfo, getUnix, Query } from '../modules/methods'
 import md5 from 'blueimp-md5'
 import { MessageItem } from '../store/messages'
+// import emojiRegex from 'emoji-regex'
 import MeowWhisperCoreSDK from '../modules/MeowWhisperCoreSDK'
 
 const MessageContainerComponent = ({
@@ -42,7 +44,7 @@ const MessageContainerComponent = ({
 	roomId: string
 	isAuthor: boolean
 }) => {
-	const { t, i18n } = useTranslation('index-header')
+	const { t, i18n } = useTranslation('messagesPage')
 	const mwc = useSelector((state: RootState) => state.mwc)
 	const config = useSelector((state: RootState) => state.config)
 	const contacts = useSelector((state: RootState) => state.contacts)
@@ -62,14 +64,25 @@ const MessageContainerComponent = ({
 	)
 	const group = useSelector((state: RootState) => state.group)
 
-	const nsocketio = useSelector((state: RootState) => state.nsocketio)
+	
 	const appStatus = useSelector((state: RootState) => state.config.status)
 	const user = useSelector((state: RootState) => state.user)
+	const emoji = useSelector((state: RootState) => state.emoji)
+	const emojiListObj = useSelector(
+		(state: RootState) => state.emoji.emojiListObj
+	)
 
 	const dispatch = useDispatch<AppDispatch>()
 
+	const richtextEl = useRef<any>()
+
 	const bubbleContextMenuEl = useRef<any>()
 	const [bubbleContextMenuIndex, setBubbleContextMenuIndex] = useState(-1)
+	const emojiContextMenuEl = useRef<any>()
+	const [emojiContextMenuElIndex, setEmojiContextMenuElIndex] = useState({
+		type: '',
+		index: -1,
+	})
 
 	const [mounted, setMounted] = useState(false)
 
@@ -106,6 +119,8 @@ const MessageContainerComponent = ({
 	const [messageRichText, setMessageRichText] = useState('')
 	const [message, setMessage] = useState('')
 
+	const [showGoBottomButton, setShowGoBottomButton] = useState(false)
+
 	const [getMessageDebounce] = useState(new Debounce())
 
 	const navigate = useNavigate()
@@ -122,6 +137,17 @@ const MessageContainerComponent = ({
 			)
 		}
 	}
+
+	useEffect(() => {
+		if (mapValue?.newMessage) {
+			dispatch(
+				messagesSlice.actions.setNewMessageStatus({
+					roomId,
+					newMessage: false,
+				})
+			)
+		}
+	}, [showGoBottomButton])
 
 	const call = async (
 		t: 'Audio' | 'Video' | 'ScreenShare',
@@ -167,6 +193,11 @@ const MessageContainerComponent = ({
 			default:
 				break
 		}
+		console.log({
+			roomId: roomId,
+			type: t,
+			participants: participants,
+		})
 		await mwc.sdk?.api.message.startCalling({
 			roomId: roomId,
 			type: t,
@@ -180,8 +211,7 @@ const MessageContainerComponent = ({
 	}
 
 	const clear = () => {
-		setMessage('')
-		setMessageRichText('')
+		richtextEl.current?.setValue('')
 		setSeding(false)
 
 		dispatch(
@@ -271,13 +301,13 @@ const MessageContainerComponent = ({
 	}
 
 	useEffect(() => {
-		console.log(
-			'visible',
-			visible,
-			roomId,
-			messages.activeRoomInfo,
-			roomId === messages.activeRoomInfo?.roomId
-		)
+		// console.log(
+		// 	'visible',
+		// 	visible,
+		// 	roomId,
+		// 	messages.activeRoomInfo,
+		// 	roomId === messages.activeRoomInfo?.roomId
+		// )
 		if (visible) {
 			console.log('开始渲染', mounted)
 
@@ -313,6 +343,36 @@ const MessageContainerComponent = ({
 		}
 	}, [visible])
 
+	const sendMessage = async () => {
+		let m = emojiToText(messageRichText)
+		// clear()
+		setSeding(true)
+		setShowGoBottomButton(false)
+		messageMainScrollEl.current?.scrollTo('bottom')
+		if (editMessage?.id) {
+			dispatch(
+				methods.messages.editMessage({
+					roomId: roomId,
+					messageId: editMessage?.id || '',
+					message: messageRichText,
+					onMessageSentSuccessfully,
+				})
+			)
+			setEditMessage(undefined)
+			return
+		}
+		await dispatch(
+			methods.messages.sendMessage({
+				roomId: messages.activeRoomInfo?.roomId || '',
+				message: m,
+				replyId: selectReplyMessage?.id || '',
+				replyMessage: selectReplyMessage,
+				onMessageSentSuccessfully,
+			})
+		)
+		setSelectReplyMessage(undefined)
+	}
+
 	useEffect(() => {
 		const v = messages.activeRoomInfo
 		const info = getDialogueInfo(messages.activeRoomInfo)
@@ -320,6 +380,34 @@ const MessageContainerComponent = ({
 		setNickname(info.name)
 		setBio(info.bio)
 	}, [messages.activeRoomInfo])
+
+	const emojiToText = (message: string) => {
+		return message.replace(
+			/<img [^>]*class=['"]([^'"]+)[^>]*src=['"]([^'"]+)[^>]*data-name=['"]([^'"]+)[^>]*>/g,
+			(el: string, className: string, src: string, name: string) => {
+				if (className === 'mwc-emoji') {
+					return '[' + name + ']'
+				}
+				console.log(el)
+				// 暂时不允许这种方式发图片。
+				return ''
+			}
+		)
+	}
+	const emojiToImg = (message: string) => {
+		return message.replace(/\[(.+?)\]/g, (el: string, name: string) => {
+			// console.log(el, name)
+			let obj = emojiListObj[name]
+			if (obj) {
+				return `<img class="mwc-emoji" 
+          alt="${obj.name}" 
+          title="${obj.name}"
+          src="${obj.src}" 
+          data-name="${obj.name}">`
+			}
+			return el
+		})
+	}
 
 	return (
 		<>
@@ -543,8 +631,8 @@ const MessageContainerComponent = ({
 																}}
 															>
 																{messages.activeRoomInfo?.type === 'Group'
-																	? 'View group info'
-																	: 'View profile'}
+																	? t('viewGroupInfo')
+																	: t('viewProfile')}
 															</span>
 														</saki-menu-item>
 														<saki-menu-item padding='8px 12px' value='Delete'>
@@ -554,10 +642,16 @@ const MessageContainerComponent = ({
 																}}
 															>
 																{type === 'Contact'
-																	? 'Delete contact'
+																	? t('deleteContact', {
+																			ns: 'contactsPage',
+																	  })
 																	: isAuthor
-																	? 'Disband group'
-																	: 'Leave group'}
+																	? t('disbandGroup', {
+																			ns: 'contactsPage',
+																	  })
+																	: t('leaveGroup', {
+																			ns: 'contactsPage',
+																	  })}
 															</span>
 														</saki-menu-item>
 														<saki-menu-item
@@ -569,7 +663,7 @@ const MessageContainerComponent = ({
 																	fontSize: '13px',
 																}}
 															>
-																Close this page
+																{t('closePage')}
 															</span>
 														</saki-menu-item>
 													</saki-menu>
@@ -641,7 +735,16 @@ const MessageContainerComponent = ({
 						>
 							{mapValue ? (
 								<saki-scroll-view
-									ref={messageMainScrollEl}
+									ref={bindEvent(
+										{
+											distancetoborder: (e) => {
+												setShowGoBottomButton(e.detail.bottom >= 100)
+											},
+										},
+										(e) => {
+											messageMainScrollEl.current = e
+										}
+									)}
 									mode='Inherit'
 									position='Bottom'
 									keep-scroll-position
@@ -651,7 +754,7 @@ const MessageContainerComponent = ({
 									// @scrolltotop="currentChat.scrollToTop"
 									// @mounted="currentChat.getScrollHeight"
 								>
-									<div>
+									<div className='message-m-main'>
 										<saki-scroll-loading
 											ref={bindEvent({
 												tap: () => {
@@ -684,11 +787,15 @@ const MessageContainerComponent = ({
 												width = Number(v.image.width)
 												height = Number(v.image.height)
 											}
-											// console.log(v.replyMessage)
+											let message = emojiToImg(v?.message || '')
+											if (message) {
+												// console.log('emojiList', emojiListObj)
+												// console.log(message)
+											}
 											return (
 												<saki-chat-bubble
 													data-id={v.id}
-													key={v.id || md5(String(Number(v.createTime)))}
+													key={i}
 													ref={bindEvent({
 														sendfailed: () => {
 															console.log('消息发送失败', v.id, v.message)
@@ -727,16 +834,32 @@ const MessageContainerComponent = ({
 															// resendMessageToServer
 															// dispatch(methods.tools.developing())
 														},
-														tap: () => {
-															if (enbalSelect) {
-																selectMessage(v)
-																return
-															}
-															if (v.call?.type) {
-																call(v.call?.type as any)
+														tap: (e) => {
+															switch (e.detail) {
+																case 'message':
+																	if (enbalSelect) {
+																		selectMessage(v)
+																		return
+																	}
+																	if (v.call?.type) {
+																		call(v.call?.type as any)
+																	}
+																	break
+																case 'avatar':
+																	dispatch(
+																		configSlice.actions.setModalUserId(
+																			v.authorId || ''
+																		)
+																	)
+
+																	break
+
+																default:
+																	break
 															}
 														},
 														opencontextmenu: (e: any) => {
+															// console.log('opencontextmenu', e)
 															if (enbalSelect) {
 																selectMessage(v)
 																return
@@ -753,6 +876,7 @@ const MessageContainerComponent = ({
 															goToMessageId &&
 															setGoToMessageId('')
 													}}
+													language={i18n.language}
 													background-color={
 														goToMessageId === v.id ? '#eee' : ''
 													}
@@ -802,8 +926,9 @@ const MessageContainerComponent = ({
 													call-time={v.call?.time || ''}
 													call-status={v.call?.status || ''}
 													read-progress={
-														MeowWhisperCoreSDK.methods.getType(v.roomId || '') ===
-														'Contact'
+														MeowWhisperCoreSDK.methods.getType(
+															v.roomId || ''
+														) === 'Contact'
 															? (v?.readUsers?.length || 0) / 1
 															: (v?.readUsers?.length || 0) /
 															  ((messages.activeRoomInfo?.members || 1) - 1)
@@ -822,9 +947,11 @@ const MessageContainerComponent = ({
 																		v?.replyMessage?.authorId || ''
 																	)?.userInfo
 																	let message =
-																		v?.replyMessage?.message?.replace(
-																			/<[^>]+>/gi,
-																			''
+																		emojiToImg(
+																			v?.replyMessage?.message?.replace(
+																				/<[^>]+>/gi,
+																				''
+																			) || ''
 																		) || ''
 																	if (v?.replyMessage?.image?.url) {
 																		message = '[Photo]'
@@ -842,7 +969,14 @@ const MessageContainerComponent = ({
 																			image-src={
 																				v?.replyMessage?.image?.url || ''
 																			}
-																		></saki-chat-bubble-reply>
+																		>
+																			<div
+																				className='saki-richtext-content'
+																				dangerouslySetInnerHTML={{
+																					__html: message || '',
+																				}}
+																			></div>
+																		</saki-chat-bubble-reply>
 																	)
 															  })()
 															: ''}
@@ -875,8 +1009,9 @@ const MessageContainerComponent = ({
 																	style={{
 																		padding: '2px 4px',
 																	}}
+																	className='saki-richtext-content'
 																	dangerouslySetInnerHTML={{
-																		__html: v.message || '',
+																		__html: message || '',
 																	}}
 																></div>
 															</>
@@ -896,6 +1031,41 @@ const MessageContainerComponent = ({
 							) : (
 								''
 							)}
+
+							<div
+								style={{
+									display: showGoBottomButton ? 'block' : 'none',
+								}}
+								className='message-m-bottom'
+							>
+								{mapValue.newMessage ? (
+									<div className='bottom-new-message'></div>
+								) : (
+									''
+								)}
+
+								<saki-button
+									ref={bindEvent({
+										tap: () => {
+											messageMainScrollEl.current?.scrollTo('bottom')
+										},
+									})}
+									margin='0 4px 0 0 '
+									width='40px'
+									height='40px'
+									bg-color='#eee'
+									bg-hover-color='#e3e3e3'
+									bg-active-color='#ddd'
+									type='CircleIconGrayHover'
+								>
+									<saki-icon
+										color='#999'
+										width='20px'
+										height='20px'
+										type='Bottom'
+									></saki-icon>
+								</saki-button>
+							</div>
 						</div>
 						<saki-row flex-direction='column' slot='message-inputbar'>
 							<saki-col>
@@ -982,41 +1152,170 @@ const MessageContainerComponent = ({
 													<saki-tabs-item
 														font-size='14px'
 														label='Emoji'
-														name={'Emoji'}
+														name={t('emoji')}
 													>
 														<saki-scroll-view mode='Inherit'>
-															<div className='mie-info-page'>
-																<saki-card hide-title hide-subtitle>
-																	<div
-																		style={{
-																			textAlign: 'center',
-																			margin: '30px 0',
-																		}}
-																	>
-																		预留, 暂未开放
-																	</div>
-																</saki-card>
+															<div className='mie-emoji-page'>
+																{/* <div
+                                style={{
+                                  textAlign: 'center',
+                                  margin: '30px 0',
+                                }}
+                              >
+                                预留, 暂未开放
+                              </div>
+                               */}
+																<div className='mie-e-list'>
+																	{emoji.emojiList.map((v, i) => {
+																		return v.list.length ? (
+																			<div key={i} className='mie-e-category'>
+																				<saki-title
+																					level='5'
+																					color='default'
+																					margin='10px 0 4px 8px'
+																				>
+																					<span>
+																						{t(v.categoryName, {
+																							ns: 'messagesPage',
+																						})}
+																					</span>
+																				</saki-title>
+																				<div className='mie-e-c-list'>
+																					{v.list.map((sv, si) => {
+																						return (
+																							<div key={sv.src}>
+																								<saki-images
+																									ref={bindEvent({
+																										click: () => {
+																											richtextEl.current.insetNode(
+																												{
+																													type: 'Image',
+																													src: sv.src,
+																													className:
+																														'mwc-emoji',
+																													name: sv.name,
+																												}
+																											)
+																											// .replace('😂', xiao)
+																											setOpenEmojiDropdown(
+																												false
+																											)
+
+																											dispatch(
+																												emojiSlice.actions.setEmojiRecentlyUsed(
+																													sv
+																												)
+																											)
+
+																											// dispatch(
+																											// 	methods.messages.sendMessage({
+																											// 		roomId: roomId,
+																											// 		image: {
+																											// 			url: v.url,
+																											// 			width: v.width,
+																											// 			height: v.height,
+																											// 			type: v.type,
+																											// 		},
+																											// 	})
+																											// ).unwrap()
+																										},
+																									})}
+																									width='40px'
+																									height='40px'
+																									padding='5px'
+																									object-fit='contain'
+																									background-color='#fff'
+																									background-hover-color='#eee'
+																									background-active-color='#ddd'
+																									border-radius='6px'
+																									src={sv.src}
+																								></saki-images>
+																							</div>
+																						)
+																					})}
+																				</div>
+																			</div>
+																		) : (
+																			''
+																		)
+																	})}
+																</div>
 															</div>
 														</saki-scroll-view>
 													</saki-tabs-item>
-
 													<saki-tabs-item
 														font-size='14px'
 														label='CustomStickers'
-														name={'Custom Stickers'}
+														name={t('customStickers')}
 													>
 														<saki-scroll-view mode='Inherit'>
 															<div className='mie-cs-page'>
-																<saki-card hide-title hide-subtitle>
-																	<div
-																		style={{
-																			textAlign: 'center',
-																			margin: '30px 0',
-																		}}
-																	>
-																		预留, 暂未开放
-																	</div>
-																</saki-card>
+																{/* <div
+																	style={{
+																		textAlign: 'center',
+																		margin: '30px 0',
+																	}}
+																>
+																	预留, 暂未开放
+																</div>
+																 */}
+																<saki-row
+																	flex-wrap='wrap'
+																	justify-content='flex-start'
+																	padding='10px'
+																>
+																	{emoji.customStickers.map((v, i) => {
+																		return (
+																			<div key={i}>
+																				<saki-col>
+																					<saki-images
+																						ref={bindEvent({
+																							click: () => {
+																								setOpenEmojiDropdown(false)
+
+																								dispatch(
+																									methods.messages.sendMessage({
+																										roomId: roomId,
+																										image: {
+																											url: v.url,
+																											width: v.width,
+																											height: v.height,
+																											type: v.type,
+																										},
+																									})
+																								).unwrap()
+																							},
+																							contextmenu: (e: any) => {
+																								setEmojiContextMenuElIndex({
+																									type: 'customStickers',
+																									index: i,
+																								})
+																								emojiContextMenuEl.current?.show(
+																									{
+																										x: e.x,
+																										y: e.y,
+																									}
+																								)
+																								e.preventDefault()
+																								return false
+																							},
+																						})}
+																						load={openEmojiDropdown}
+																						width='70px'
+																						height='70px'
+																						padding='10px'
+																						object-fit='contain'
+																						background-color='#fff'
+																						background-hover-color='#eee'
+																						background-active-color='#ddd'
+																						border-radius='6px'
+																						src={v.url}
+																					></saki-images>
+																				</saki-col>
+																			</div>
+																		)
+																	})}
+																</saki-row>
 															</div>
 														</saki-scroll-view>
 													</saki-tabs-item>
@@ -1024,15 +1323,41 @@ const MessageContainerComponent = ({
 											</div>
 										</saki-dropdown>
 									</div>
-									<div className='message-inputbar-input'>
-										<saki-textarea
-											ref={bindEvent({
-												changevalue: (e) => {
-													// console.log('textarea', e.detail)
-													setMessageRichText(e.detail.richText)
-													setMessage(e.detail.content)
+									<div className='message-inputbar-input saki-richtext-content'>
+										<saki-richtext
+											ref={bindEvent(
+												{
+													changevalue: (e) => {
+														// console.log('textarea', e.detail)
+
+														// e.detail.richText = e.detail.richText.replace(
+														// 	xiao,
+														// 	'😂'
+														// )
+														// console.log('textarea', e.detail)
+														setMessageRichText(e.detail.richText)
+														setMessage(
+															emojiToText(e.detail.richText).replace(
+																/<[^>]+>/g,
+																''
+															)
+														)
+													},
+													submit: () => {
+														sendMessage()
+													},
 												},
-											})}
+												(e) => {
+													richtextEl.current = e
+													richtextEl.current?.setToolbar({
+														container: [],
+													})
+												}
+											)}
+											theme='snow'
+											toolbar='false'
+											editor-padding='0px'
+											toolbar-padding='0px'
 											max-height='300px'
 											width='100%'
 											padding='0'
@@ -1040,58 +1365,67 @@ const MessageContainerComponent = ({
 											border-radius='0'
 											min-length='0'
 											max-length='10000'
+											enter={
+												config.deviceType === 'PC' ||
+												user.userAgent?.os?.name === 'Windows' ||
+												user.userAgent?.os?.name === 'Linux x86_64' ||
+												user.userAgent?.os?.name === 'Mac OS X'
+													? 'Submit'
+													: 'NewLine'
+											}
+											short-enter='NewLine'
 											background-color='rgb(243,243,243)'
 											value={messageRichText}
 											// :value="currentChat.value"
 											// @clearvalue="currentChat.value = ''"
 											// @pressenter="currentChat.send"
 											// @changevalue="(e:CustomEvent)=>currentChat.changevalue(e)"
-											placeholder='Type a message'
+											placeholder={t('writeMmessage')}
 										/>
 									</div>
 									<div className='message-right-buttons'>
-										<saki-button
-											ref={bindEvent({
-												tap: async () => {
-													let m = messageRichText
-													// clear()
-													setSeding(true)
-													if (editMessage?.id) {
-														dispatch(
-															methods.messages.editMessage({
-																roomId: roomId,
-																messageId: editMessage?.id || '',
-																message: m,
-																onMessageSentSuccessfully,
-															})
-														)
-														setEditMessage(undefined)
-														return
-													}
-													await dispatch(
-														methods.messages.sendMessage({
-															roomId: messages.activeRoomInfo?.roomId || '',
-															message: m,
-															replyId: selectReplyMessage?.id || '',
-															replyMessage: selectReplyMessage,
-															onMessageSentSuccessfully,
-														})
-													)
-													setSelectReplyMessage(undefined)
-												},
-											})}
-											margin='0 0 0 4px'
-											width='40px'
-											height='40px'
-											type='CircleIconGrayHover'
-										>
-											<saki-icon
-												type='Send'
-												width='18px'
-												height='18px'
-												color='var(--default-color)'
-											/>
-										</saki-button>
+										{message ? (
+											<saki-button
+												ref={bindEvent({
+													tap: () => {
+														sendMessage()
+													},
+												})}
+												margin='0 0 0 4px'
+												width='40px'
+												height='40px'
+												type='CircleIconGrayHover'
+											>
+												<saki-icon
+													type='Send'
+													width='18px'
+													height='18px'
+													color='var(--default-color)'
+												/>
+											</saki-button>
+										) : (
+											<saki-button
+												ref={bindEvent({
+													tap: () => {
+														dispatch(methods.tools.developing())
+													},
+												})}
+												margin='0 0 0 4px'
+												width='40px'
+												height='40px'
+												type='CircleIconGrayHover'
+												disabled
+											>
+												<saki-icon
+													type='MicroPhone'
+													width='20px'
+													height='20px'
+													color='#ccc'
+													// color='#777'
+												/>
+											</saki-button>
+										)}
+
 										<saki-dropdown
 											ref={bindEvent({
 												close: () => {
@@ -1149,7 +1483,11 @@ const MessageContainerComponent = ({
 																margin='0 8px 0 0'
 																color='#777'
 															/>
-															<span>Photo</span>
+															<span>
+																{t('photo', {
+																	ns: 'common',
+																})}
+															</span>
 														</div>
 													</saki-menu-item>
 													<saki-menu-item padding='10px 18px' value='Video'>
@@ -1161,7 +1499,11 @@ const MessageContainerComponent = ({
 																margin='0 8px 0 0'
 																color='#777'
 															/>
-															<span>Video</span>
+															<span>
+																{t('video', {
+																	ns: 'common',
+																})}
+															</span>
 														</div>
 													</saki-menu-item>
 													<saki-menu-item padding='10px 18px' value='File'>
@@ -1173,7 +1515,11 @@ const MessageContainerComponent = ({
 																margin='0 8px 0 0'
 																color='#777'
 															/>
-															<span>File</span>
+															<span>
+																{t('file', {
+																	ns: 'common',
+																})}
+															</span>
 														</div>
 													</saki-menu-item>
 												</saki-menu>
@@ -1220,7 +1566,7 @@ const MessageContainerComponent = ({
 												nickname: v.userInfo?.nickname || '',
 												bio:
 													(v?.lastSeenTime || 0) > 0
-														?MeowWhisperCoreSDK.methods.getLastSeenTime(
+														? MeowWhisperCoreSDK.methods.getLastSeenTime(
 																Number(v.lastSeenTime)
 														  ) || ''
 														: '',
@@ -1409,8 +1755,20 @@ const MessageContainerComponent = ({
 											setEnbalSelect(true)
 											setSelectMessageIds([m.id || ''])
 											break
-										// case 'AddSticker':
-										// 	break
+										case 'AddSticker':
+											dispatch(
+												methods.emoji.addCustomSticker({
+													csi: {
+														url: m?.image?.url || '',
+														width: Number(m?.image?.width) || 0,
+														height: Number(m?.image?.height) || 0,
+														type: (m?.image?.type as any) || 'image/jpeg',
+														createTime: getUnix(),
+													},
+												})
+											)
+
+											break
 										// case 'Pin':
 										// 	break
 										case 'Edit':
@@ -1424,6 +1782,7 @@ const MessageContainerComponent = ({
 											selectReplyMessage && setSelectReplyMessage(undefined)
 											setEditMessage(m)
 											setMessageRichText(m.message || '')
+											richtextEl.current?.setValue(m.message)
 											break
 										case 'Delete':
 											dispatch(
@@ -1460,58 +1819,68 @@ const MessageContainerComponent = ({
 										font-size={fontSize}
 										padding={padding}
 										value='Download'
-										hide={!m?.image?.url || m?.audio?.url || m?.video?.url}
+										hide={!(m?.image?.url || m?.audio?.url || m?.video?.url)}
 									>
-										Download
+										{t('download', {
+											ns: 'common',
+										})}
 									</saki-context-menu-item>
 									<saki-context-menu-item
 										font-size={fontSize}
 										padding={padding}
 										value='Edit'
-										hide={m?.authorId !== user.userInfo.uid}
+										hide={!(m?.authorId === user.userInfo.uid && m?.message)}
 									>
-										Edit
+										{t('edit', {
+											ns: 'common',
+										})}
 									</saki-context-menu-item>
 									<saki-context-menu-item
 										font-size={fontSize}
 										padding={padding}
 										value='Copy'
 									>
-										Copy
+										{t('copy', {
+											ns: 'common',
+										})}
 									</saki-context-menu-item>
 									<saki-context-menu-item
 										font-size={fontSize}
 										padding={padding}
 										value='Forward'
 									>
-										Forward
+										{t('forward', {
+											ns: 'common',
+										})}
 									</saki-context-menu-item>
 									<saki-context-menu-item
 										font-size={fontSize}
 										padding={padding}
 										value='Reply'
 									>
-										Reply
+										{t('reply', {
+											ns: 'common',
+										})}
 									</saki-context-menu-item>
 									<saki-context-menu-item
 										font-size={fontSize}
 										padding={padding}
 										value='Select'
 									>
-										Select
+										{t('select', {
+											ns: 'common',
+										})}
 									</saki-context-menu-item>
-									{m?.image?.url ? (
-										<saki-context-menu-item
-											font-size={fontSize}
-											padding={padding}
-											value='AddSticker'
-											disabled
-										>
-											Add Sticker
-										</saki-context-menu-item>
-									) : (
-										''
-									)}
+									<saki-context-menu-item
+										font-size={fontSize}
+										padding={padding}
+										value='AddSticker'
+										hide={!m?.image?.url}
+									>
+										{t('addSticker', {
+											ns: 'common',
+										})}
+									</saki-context-menu-item>
 									{/* 收藏夹 */}
 									<saki-context-menu-item
 										font-size={fontSize}
@@ -1519,14 +1888,74 @@ const MessageContainerComponent = ({
 										value='Pin'
 										disabled
 									>
-										Pin
+										{t('pin', {
+											ns: 'common',
+										})}
 									</saki-context-menu-item>
 									<saki-context-menu-item
 										font-size={fontSize}
 										padding={padding}
 										value='Delete'
 									>
-										Delete
+										{t('delete', {
+											ns: 'common',
+										})}
+									</saki-context-menu-item>
+								</div>
+							)
+						})()}
+					</saki-context-menu>
+
+					<saki-context-menu
+						ref={bindEvent(
+							{
+								selectvalue: (e) => {
+									switch (e.detail.value) {
+										case 'Delete':
+											switch (emojiContextMenuElIndex.type) {
+												case 'customStickers':
+													dispatch(
+														methods.emoji.deleteCustomSticker({
+															index: emojiContextMenuElIndex.index,
+														})
+													)
+													break
+
+												default:
+													break
+											}
+											break
+
+										default:
+											dispatch(methods.tools.developing())
+											break
+									}
+								},
+								close: () => {
+									setBubbleContextMenuIndex(-1)
+
+									// chatDialogList.dialogContextMenuIndex = -1
+								},
+							},
+							(e) => {
+								emojiContextMenuEl.current = e
+							}
+						)}
+					>
+						{(() => {
+							let fontSize = '13px'
+							let padding = '10px 20px'
+							let m = messagesList[bubbleContextMenuIndex]
+							return (
+								<div>
+									<saki-context-menu-item
+										font-size={fontSize}
+										padding={padding}
+										value='Delete'
+									>
+										{t('delete', {
+											ns: 'common',
+										})}
 									</saki-context-menu-item>
 								</div>
 							)

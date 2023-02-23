@@ -23,9 +23,63 @@ import { stringify } from 'querystring'
 import { resolve } from 'path'
 import { nanoid } from 'nanoid'
 import { client } from './sso'
-import { AnonymousUserInfo, defaultValue } from '../modules/sakisso'
+import { defaultValue, UserInfo } from '@nyanyajs/utils/dist/sakisso'
+import { t } from 'i18next'
+import { alert, snackbar } from '@saki-ui/core'
 
 export const modeName = 'user'
+
+export let userInfo = defaultValue.userInfo
+export let userAgent = nyanyajs.userAgent(window.navigator.userAgent)
+export const userSlice = createSlice({
+	name: modeName,
+	initialState: {
+		userAgent: {
+			...userAgent,
+		},
+		token: '',
+		deviceId: '',
+		userInfo,
+		isLogin: false,
+    isInit: false,
+	},
+	reducers: {
+		setInit: (state, params: ActionParams<boolean>) => {
+			state.isInit = params.payload
+		},
+		setIsLogin: (state, params: ActionParams<boolean>) => {
+			state.isLogin = params.payload
+		},
+		login: (
+			state,
+			params: ActionParams<{
+				token: string
+				deviceId: string
+				userInfo: UserInfo
+			}>
+		) => {
+			const { token, deviceId, userInfo } = params.payload
+			state.token = token || ''
+			state.deviceId = deviceId || ''
+			state.userInfo = userInfo || Object.assign({}, userInfo)
+		},
+		logout: (state, _) => {
+			storage.global.delete('token')
+			storage.global.delete('deviceId')
+			storage.global.delete('userInfo')
+			state.token = ''
+			state.deviceId = ''
+			state.userInfo = Object.assign({}, userInfo)
+			state.isLogin = false
+			console.log('useruseruser', state)
+			setTimeout(() => {
+				const { mwc } = store.getState()
+				mwc.sdk?.clear()
+				store.dispatch(storageSlice.actions.init(''))
+			})
+		},
+	},
+})
 
 export const userMethods = {
 	Init: createAsyncThunk<
@@ -41,7 +95,7 @@ export const userMethods = {
 		const { user, config, sso } = thunkAPI.getState()
 		const token = await storage.global.get('token')
 		const deviceId = await storage.global.get('deviceId')
-    const userInfo = await storage.global.get('userInfo')
+		const userInfo = await storage.global.get('userInfo')
 		if (token) {
 			await thunkAPI.dispatch(
 				userMethods.login({
@@ -76,22 +130,18 @@ export const userMethods = {
 		try {
 			console.log('校验token是否有效')
 			const { user, config, sso } = thunkAPI.getState()
-			if (!user.token || !user.deviceId || !sso.appToken) {
+			console.log(user, sso)
+			if (!user.token || !user.deviceId) {
+				thunkAPI.dispatch(userSlice.actions.logout({}))
 				return
 			}
-			const res = await client?.anonymousUser.verifyUserToken({
-				appToken: sso.appToken,
+			const res = await client?.checkToken({
 				token: user.token,
 				deviceId: user.deviceId,
+				userAgent: user.userAgent,
 			})
 			console.log('res checkToken', res)
-			if (res === 10029) {
-				thunkAPI.dispatch(userSlice.actions.logout({}))
-				await thunkAPI.dispatch(methods.sso.GetAppToken())
-				// await thunkAPI.dispatch(methods.user.checkToken()).unwrap()
-			} else if (res === 10004) {
-				thunkAPI.dispatch(userSlice.actions.logout({}))
-			} else if (res) {
+			if (res) {
 				console.log('登陆成功')
 				await thunkAPI.dispatch(
 					userMethods.login({
@@ -102,16 +152,57 @@ export const userMethods = {
 					})
 				)
 				thunkAPI.dispatch(userSlice.actions.setIsLogin(true))
+				// await thunkAPI.dispatch(methods.sso.GetAppToken())
+				// await thunkAPI.dispatch(methods.user.checkToken()).unwrap()
+			} else {
+				thunkAPI.dispatch(userSlice.actions.logout({}))
+				thunkAPI.dispatch(userSlice.actions.setIsLogin(false))
 			}
 		} catch (error) {}
 	}),
 
+	logout: createAsyncThunk<
+		void,
+		void,
+		{
+			state: RootState
+		}
+	>(modeName + '/logout', async (_, thunkAPI) => {
+		alert({
+			title: t('logout', {
+				ns: 'common',
+			}),
+			content: t('logoutContent', {
+				ns: 'common',
+			}),
+			cancelText: t('cancel', {
+				ns: 'common',
+			}),
+			confirmText: t('logout', {
+				ns: 'common',
+			}),
+			onCancel() {},
+			async onConfirm() {
+				thunkAPI.dispatch(userSlice.actions.logout({}))
+				snackbar({
+					message: t('logoutSuccessfully', {
+						ns: 'common',
+					}),
+					autoHideDuration: 2000,
+					vertical: 'top',
+					horizontal: 'center',
+					backgroundColor: 'var(--saki-default-color)',
+					color: '#fff',
+				}).open()
+			},
+		}).open()
+	}),
 	login: createAsyncThunk<
 		void,
 		{
 			token: string
 			deviceId: string
-			userInfo: AnonymousUserInfo
+			userInfo: UserInfo
 			type: 'NewLogin' | 'LoggedIn'
 		},
 		{
@@ -145,60 +236,9 @@ export const userMethods = {
 				await mwc.sdk?.encryption.clear()
 				// await mwc.sdk?.encryption.init()
 				thunkAPI.dispatch(userSlice.actions.setIsLogin(true))
-				thunkAPI.dispatch(methods.sso.GetAppToken())
+				// thunkAPI.dispatch(methods.sso.GetAppToken())
 			}
 			thunkAPI.dispatch(storageSlice.actions.init(userInfo.uid))
 		}
 	}),
 }
-
-export let userInfo = defaultValue.anonymousUserInfo
-export let userAgent = nyanyajs.userAgent(window.navigator.userAgent)
-export const userSlice = createSlice({
-	name: modeName,
-	initialState: {
-		userAgent: {
-			...userAgent,
-		},
-		token: '',
-		deviceId: '',
-		userInfo,
-		isLogin: false,
-		isInit: false,
-	},
-	reducers: {
-		setInit: (state, params: ActionParams<boolean>) => {
-			state.isInit = params.payload
-		},
-		setIsLogin: (state, params: ActionParams<boolean>) => {
-			state.isLogin = params.payload
-		},
-		login: (
-			state,
-			params: ActionParams<{
-				token: string
-				deviceId: string
-				userInfo: AnonymousUserInfo
-			}>
-		) => {
-			const { token, deviceId, userInfo } = params.payload
-			state.token = token || ''
-			state.deviceId = deviceId || ''
-			state.userInfo = userInfo || Object.assign({}, userInfo)
-		},
-		logout: (state, _) => {
-			storage.global.delete('token')
-			storage.global.delete('deviceId')
-			storage.global.delete('userInfo')
-			state.token = ''
-			state.deviceId = ''
-			state.userInfo = Object.assign({}, userInfo)
-			state.isLogin = false
-			setTimeout(() => {
-				const { mwc } = store.getState()
-        mwc.sdk?.clear()
-				store.dispatch(storageSlice.actions.init(''))
-			})
-		},
-	},
-})

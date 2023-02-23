@@ -25,31 +25,34 @@ const AddContactComponent = ({
 	visible: boolean
 	onChange: (visible: boolean) => void
 }) => {
-	const { t, i18n } = useTranslation('index-header')
+	const { t, i18n } = useTranslation('modal')
 	const config = useSelector((state: RootState) => state.config)
 	const mwc = useSelector((state: RootState) => state.mwc)
-	const nsocketio = useSelector((state: RootState) => state.nsocketio)
 	const appStatus = useSelector((state: RootState) => state.config.status)
 	const user = useSelector((state: RootState) => state.user)
 
-	const [uid, setUid] = useState('100001')
+	const [userId, setUserId] = useState('')
 
 	const dispatch = useDispatch<AppDispatch>()
 
 	const location = useLocation()
 	const history = useNavigate()
 
+	useEffect(() => {
+		setUserId('')
+	}, [visible])
+
 	const searchUser = async () => {
 		let message = ''
 		const getUser = await mwc.sdk?.api.contact.searchContact({
-			uid,
+			userId,
 		})
 		console.log(getUser)
 		if (getUser?.code === 200) {
 			// 预留 检测是否需要校验，需要则出输入备注的弹框
 			const add = await dispatch(
 				methods.contacts.addContact({
-					uid,
+					userId,
 					remark: '',
 				})
 			)
@@ -92,19 +95,21 @@ const AddContactComponent = ({
 					},
 				})}
 				close-icon
-				title='Add contact'
+				title={t('addContact', {
+					ns: 'contactsPage',
+				})}
 			></saki-modal-header>
 			<div className={'add-contact-dropdown ' + config.deviceType}>
 				<div className='acd-input'>
 					<saki-input
 						type='Text'
 						height='56px'
-						placeholder='Contact id'
+						placeholder={t('findPeople')}
 						placeholder-animation='MoveUp'
-						value={uid}
+						value={userId}
 						ref={bindEvent({
 							changevalue: (e) => {
-								setUid(e.detail)
+								setUserId(e.detail)
 							},
 						})}
 					></saki-input>
@@ -122,7 +127,9 @@ const AddContactComponent = ({
 						font-size='14px'
 						type='Primary'
 					>
-						Add
+						{t('add', {
+							ns: 'common',
+						})}
 					</saki-button>
 				</div>
 			</div>

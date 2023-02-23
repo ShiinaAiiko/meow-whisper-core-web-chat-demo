@@ -15,7 +15,8 @@ import { stringify } from 'querystring'
 import axios from 'axios'
 import { resolve } from 'path'
 import { nanoid } from 'nanoid'
-import { sakisso, nsocketio, version, origin, meowWhisperCore } from '../config'
+import { sakisso, version, origin, meowWhisperCore } from '../config'
+import { api } from '../modules/electron/api'
 
 export const modeName = 'config'
 
@@ -25,6 +26,30 @@ export const configMethods = {
 		store.dispatch(methods.config.getDeviceType())
 		store.dispatch(methods.config.initLanguage())
 		await thunkAPI.dispatch(methods.config.GetPublicRsaPbk()).unwrap()
+
+		const callSound = await storage.global.get('notification-callSound')
+		thunkAPI.dispatch(
+			configSlice.actions.setNotificationCallSound(
+				callSound === '0' ? false : true
+			)
+		)
+		thunkAPI.dispatch(
+			configSlice.actions.setAppearanceMode(
+				(await storage.global.get('appearance-mode')) || 'system'
+			)
+		)
+
+		console.log(
+			"await storage.global.get('automaticallyStart')",
+			storage,
+			await storage.global.get('automaticallyStart')
+		)
+		thunkAPI.dispatch(
+			configSlice.actions.setAutomaticallyStart(
+				(await storage.global.get('automaticallyStart')) === 'true'
+			)
+		)
+
 		// store.dispatch(methods.config.initAutoCloseWindowAfterCopy())
 		// store.dispatch(methods.config.initSync())
 		// store.dispatch(methods.config.initBackup())
@@ -71,69 +96,6 @@ export const configMethods = {
 			store.dispatch(
 				configSlice.actions.setLanguage({
 					language: (await storage.systemConfig.get('language')) || 'system',
-				})
-			)
-		}
-	),
-	initAutoCloseWindowAfterCopy: createAsyncThunk(
-		modeName + '/initLanguage',
-		async (_, thunkAPI) => {
-			store.dispatch(
-				configSlice.actions.setAutoCloseWindowAfterCopy(
-					JSON.parse(
-						await storage.systemConfig.get('autoCloseWindowAfterCopy')
-					) || false
-				)
-			)
-		}
-	),
-	initSync: createAsyncThunk(modeName + '/initSync', async (_, thunkAPI) => {
-		store.dispatch(
-			configSlice.actions.setSync(
-				JSON.parse(await storage.systemConfig.get('sync')) || false
-			)
-		)
-	}),
-	initBackup: createAsyncThunk(
-		modeName + '/initBackup',
-		async (_, thunkAPI) => {
-			thunkAPI.dispatch(
-				configSlice.actions.setBackup({
-					type: 'storagePath',
-					v: (await storage.systemConfig.get('backupStoragePath')) || '',
-				})
-			)
-			thunkAPI.dispatch(
-				configSlice.actions.setBackup({
-					type: 'backupAutomatically',
-					v:
-						JSON.parse(await storage.systemConfig.get('backupAutomatically')) ||
-						false,
-				})
-			)
-			thunkAPI.dispatch(
-				configSlice.actions.setBackup({
-					type: 'keepBackups',
-					v: (await storage.systemConfig.get('keepBackups')) || '3784320000',
-				})
-			)
-			thunkAPI.dispatch(
-				configSlice.actions.setBackup({
-					type: 'automaticBackupFrequency',
-					v:
-						(await storage.systemConfig.get('automaticBackupFrequency')) ||
-						'604800',
-				})
-			)
-		}
-	),
-	getLastBackupTime: createAsyncThunk(
-		modeName + '/initBackup',
-		async (_, thunkAPI) => {
-			thunkAPI.dispatch(
-				configSlice.actions.setBackup({
-					type: 'lastBackupTime',
-					v: (await storage.systemConfig.get('lastBackupTime')) || 0,
 				})
 			)
 		}
@@ -237,7 +199,6 @@ let initialState = {
 	sakisso,
 	socketIoConfig: {
 		// uri: 'http://192.168.0.103:15301',
-		uri: nsocketio.url,
 		opt: {
 			reconnectionDelay: 2000,
 			reconnectionDelayMax: 5000,
@@ -248,7 +209,7 @@ let initialState = {
 		},
 	},
 	general: {
-		autoCloseWindowAfterCopy: false,
+		automaticallyStart: false,
 		openLoginUserDropDownMenu: false,
 	},
 	appearance: appearance,
@@ -277,6 +238,7 @@ let initialState = {
 		leval: 0,
 		// -1 关闭 0 离开后通知 1 实时通知
 		sound: 0,
+		callSound: true,
 	},
 	dev: {
 		loading: false,
@@ -318,6 +280,10 @@ export const configSlice = createSlice({
 				getI18n().changeLanguage(state.language)
 			}
 			storage.systemConfig.setSync('language', state.language)
+
+			api.updateSetting({
+				type: 'language',
+			})
 		},
 		setSync: (state, params: ActionParams<boolean>) => {
 			state.sync = params.payload
@@ -404,12 +370,18 @@ export const configSlice = createSlice({
 					break
 			}
 		},
-		setAutoCloseWindowAfterCopy: (state, params: ActionParams<boolean>) => {
-			state.general.autoCloseWindowAfterCopy = params.payload
-			storage.systemConfig.setSync(
-				'autoCloseWindowAfterCopy',
+		setAutomaticallyStart: (state, params: ActionParams<boolean>) => {
+			state.general.automaticallyStart = params.payload
+			storage.global.setSync(
+				'automaticallyStart',
 				JSON.stringify(params.payload)
 			)
+			setTimeout(async () => {
+				console.log(
+					"await storage.global.get('automaticallyStart')",
+					await storage.global.get('automaticallyStart')
+				)
+			})
 		},
 		setNetworkStatus: (state, params: ActionParams<boolean>) => {
 			state.networkStatus = params.payload
@@ -468,16 +440,27 @@ export const configSlice = createSlice({
 		) => {
 			state.notification.sound = params.payload
 		},
+		setNotificationCallSound: (
+			state,
+			params: ActionParams<typeof initialState['notification']['callSound']>
+		) => {
+			state.notification.callSound = params.payload
+			storage.global.setSync(
+				'notification-callSound',
+				params.payload ? '1' : '0'
+			)
+		},
 		setAppearanceMode: (
 			state,
 			params: ActionParams<typeof initialState['appearance']['mode']>
 		) => {
 			state.appearance.mode = params.payload
+			document.body.classList.remove('system-mode', 'dark-mode', 'light-mode')
+			document.body.classList.add(state.appearance.mode + '-mode')
+
+			storage.global.setSync('appearance-mode', params.payload)
 		},
-		setDev: (
-			state,
-			params: ActionParams<typeof initialState['dev']>
-		) => {
+		setDev: (state, params: ActionParams<typeof initialState['dev']>) => {
 			state.dev = params.payload
 		},
 	},

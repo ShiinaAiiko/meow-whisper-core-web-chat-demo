@@ -5,14 +5,27 @@ import {
 	configureStore,
 } from '@reduxjs/toolkit'
 import md5 from 'blueimp-md5'
-import store, { ActionParams, configSlice, RootState } from '.'
+import store, {
+	ActionParams,
+	configSlice,
+	messagesSlice,
+	methods,
+	RootState,
+} from '.'
 import { PARAMS, protoRoot } from '../protos'
-import { WebStorage, SakiSSOClient, LocalCache } from '@nyanyajs/utils'
+import {
+	WebStorage,
+	SakiSSOClient,
+	LocalCache,
+	deepCopy,
+} from '@nyanyajs/utils'
 import { MeowWhisperCoreSDK } from '../modules/MeowWhisperCoreSDK'
 import { meowWhisperCore, sakisso } from '../config'
 import { userAgent } from './user'
 import { storage } from './storage'
 import { alert, snackbar } from '@saki-ui/core'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Query } from '../modules/methods'
 
 export const modeName = 'group'
 
@@ -48,6 +61,10 @@ export const groupSlice = createSlice({
 			state.list.forEach((v) => {
 				state.mapList[v.id || ''] = v
 			})
+			state.list.sort((a, b) => {
+				return Number(b.lastMessageTime) - Number(a.lastMessageTime)
+			})
+			console.log('setGroupList', deepCopy(state.list))
 		},
 	},
 })
@@ -79,6 +96,48 @@ export const groupMethods = {
 		}
 		thunkAPI.dispatch(groupSlice.actions.setIsInit(true))
 	}),
+	updateGroupInfo: createAsyncThunk<
+		void,
+		{
+			groupId: string
+			avatar: string
+			name: string
+		},
+		{
+			state: RootState
+		}
+	>(
+		modeName + '/updateGroupInfo',
+		async ({ groupId, avatar, name }, thunkAPI) => {
+			const { mwc, user, group, messages } = thunkAPI.getState()
+
+			if (messages.activeRoomInfo?.roomId === groupId) {
+				thunkAPI.dispatch(
+					messagesSlice.actions.setActiveRoomInfo({
+						...messages.activeRoomInfo,
+						lastUpdateTime: Math.round(new Date().getTime() / 1000),
+					})
+				)
+			}
+			thunkAPI.dispatch(
+				groupSlice.actions.setGroupList(
+					group.list.map((v) => {
+						if (v.id === groupId) {
+							let o = {
+								...v,
+								avatar: avatar || v.avatar,
+								name: name || v.name,
+								lastUpdateTime: Math.round(new Date().getTime() / 1000),
+							}
+							mwc.cache.group?.set(v.id || '', o)
+							return o
+						}
+						return v
+					})
+				)
+			)
+		}
+	),
 	getGroupMembers: createAsyncThunk<
 		void,
 		{
@@ -94,6 +153,13 @@ export const groupMethods = {
 		})
 		console.log('getGroupMembers', user, getGroupMembers)
 		if (getGroupMembers?.code === 200 && getGroupMembers.data?.list?.length) {
+			thunkAPI.dispatch(
+				methods.contacts.getUserCache(
+					getGroupMembers.data.list?.map((v) => {
+						return v.authorId || ''
+					}) || []
+				)
+			)
 			thunkAPI.dispatch(
 				groupSlice.actions.setGroupList(
 					group.list.map((v) => {
@@ -176,7 +242,7 @@ export const groupMethods = {
 			async onConfirm() {
 				const res = await mwc.sdk?.api.group.leaveGroup({
 					groupId,
-					uid: user.userInfo.uid,
+					uid: [user.userInfo.uid],
 				})
 				console.log(res)
 				if (res?.code === 200) {
@@ -188,6 +254,22 @@ export const groupMethods = {
 						backgroundColor: 'var(--saki-default-color)',
 						color: '#fff',
 					}).open()
+					// if (window.location.search.indexOf(groupId)) {
+					// 	const navigate = useNavigate()
+					// 	const [searchParams] = useSearchParams()
+					// 	navigate?.(
+					// 		Query(
+					// 			'/',
+					// 			{
+					// 				roomId: '',
+					// 			},
+					// 			searchParams
+					// 		),
+					// 		{
+					// 			replace: true,
+					// 		}
+					// 	)
+					// }
 					thunkAPI.dispatch(
 						groupSlice.actions.setGroupList(
 							group.list.filter((v) => v.id !== groupId)
@@ -202,7 +284,7 @@ export const groupMethods = {
 		boolean,
 		{
 			groupId: string
-			uid: string
+			uid: string[]
 			remark: string
 		},
 		{
@@ -227,9 +309,87 @@ export const groupMethods = {
 				backgroundColor: 'var(--saki-default-color)',
 				color: '#fff',
 			}).open()
-			thunkAPI.dispatch(groupMethods.getGroupList())
+
+			thunkAPI.dispatch(
+				methods.group.updateListAfterJoinGroup({
+					groupId,
+				})
+			)
 		}
 
-		return add?.code === 200
+		return add?.data?.type === 'Added'
 	}),
+	updateListAfterJoinGroup: createAsyncThunk<
+		void,
+		{
+			groupId: string
+		},
+		{
+			state: RootState
+		}
+	>(modeName + '/updateListAfterJoinGroup', async ({ groupId }, thunkAPI) => {
+		if (!groupId) return
+		await thunkAPI.dispatch(methods.messages.joinRoom([groupId]))
+
+		thunkAPI.dispatch(groupMethods.getGroupList())
+		const { group } = thunkAPI.getState()
+		group.list.some((v) => {
+			if (v.id === groupId) {
+				store.dispatch(
+					methods.messages.setChatDialogue({
+						roomId: v.id || '',
+						type: 'Group',
+						id: v.id || '',
+						showMessageContainer: true,
+						unreadMessageCount: -2,
+						sort: -1,
+					})
+				)
+				return true
+			}
+		})
+	}),
+	setGroupMembers: createAsyncThunk<
+		void,
+		{
+			groupId: string
+			changeValue: number
+		},
+		{
+			state: RootState
+		}
+	>(
+		modeName + '/setGroupMembers',
+		async ({ groupId, changeValue }, thunkAPI) => {
+			if (!groupId) return
+
+			const { group, mwc, messages } = thunkAPI.getState()
+
+			if (messages.activeRoomInfo?.roomId === groupId) {
+				thunkAPI.dispatch(
+					messagesSlice.actions.setActiveRoomInfo({
+						...messages.activeRoomInfo,
+						members:
+							(messages.activeRoomInfo.members || 0) + (changeValue || 0),
+					})
+				)
+			}
+
+			thunkAPI.dispatch(
+				groupSlice.actions.setGroupList(
+					group.list.map((v) => {
+						if (v.id === groupId) {
+							let o = {
+								...v,
+								members: Number(v.members) - 1,
+							}
+							mwc.cache.group?.set(v.id || '', o)
+							return o
+						}
+						return v
+					})
+				)
+			)
+		}
+	),
 }

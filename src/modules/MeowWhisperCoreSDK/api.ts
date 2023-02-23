@@ -21,7 +21,7 @@ export const apiUrls = {
 		getAllJoinedGroups: '/group/list/joined/get',
 		getGroupInfo: '/group/info/get',
 		disbandGroup: '/group/disband',
-		updateGroup: '/group/update',
+		updateGroupInfo: '/group/update/info',
 		// type OnlyAdd/FullAccess
 		getGroupMembers: '/group/members/get',
 		joinGroup: '/group/members/join',
@@ -59,6 +59,8 @@ export const apiUrls = {
 
 		// File
 		getUploadFileToken: '/file/uplpad/token/get',
+		getCustomStickersUploadFileToken: '/file/customStickers/uplpad/token/get',
+		getCustomStickersFileUrl: '/file/customStickers/url/get',
 
 		// call
 		verifyCallToken: '/call/token/verify',
@@ -105,8 +107,17 @@ export const eventName = {
 			recalledMessage: 'RecalledMessage',
 			deleteMessages: 'DeleteMessages',
 
+			// Contact
+			updateContactStatus: 'UpdateContactStatus',
+			updateGroupInfo: 'UpdateGroupInfo',
+
+			// Group
+			updateGroupStatus: 'UpdateGroupStatus',
+
+			// Call
 			startCallingMessage: 'StartCallingMessage',
 			hangupMessage: 'HangupMessage',
+			callReconnectMessages: 'CallReconnectMessages',
 		},
 		requestEventName: {
 			joinRoom: 'JoinRoom',
@@ -118,9 +129,12 @@ export const eventName = {
 			// 通过roomId 阅读该房间的所有消息
 			readAllMessage: 'ReadAllMessage',
 			recallMessage: 'RecallMessage',
+
+			// Call
 			// 以roomId为单位，可以选择哪些用户参与
 			startCalling: 'StartCalling',
 			hangup: 'Hangup',
+			callReconnect: 'CallReconnect',
 		},
 	},
 }

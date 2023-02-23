@@ -6,11 +6,9 @@ import {
 } from '@reduxjs/toolkit'
 import md5 from 'blueimp-md5'
 import store, { ActionParams } from '.'
-// import { WebStorage, StorageOptions } from './ws'
+// import { WebStorage, StorageOptions } from './webStorage'
 import { WebStorage, StorageOptions } from '@nyanyajs/utils/dist/webStorage'
 import { platform } from './config'
-import { protoRoot } from '../protos'
-import { FriendItem } from './contacts'
 
 let storageStr: StorageOptions['storage'] = 'IndexedDB'
 

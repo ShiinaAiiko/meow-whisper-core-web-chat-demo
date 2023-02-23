@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { RouterProps, useNavigate } from 'react-router-dom'
+import { RouterProps, useNavigate, useSearchParams } from 'react-router-dom'
 import logo from '../logo.svg'
 import { Helmet } from 'react-helmet-async'
 import './Contacts.scss'
@@ -23,9 +23,11 @@ import { deepCopy, getInitials } from '@nyanyajs/utils'
 import { TransitionGroup, CSSTransition } from 'react-transition-group'
 import { eventTarget } from '../store/config'
 import { protoRoot } from '../protos'
+import { Query } from '../modules/methods'
+import MeowWhisperCoreSDK from '../modules/MeowWhisperCoreSDK'
 
 const ContactsPage = ({ children }: RouterProps) => {
-	const { t, i18n } = useTranslation('ChatPage')
+	const { t, i18n } = useTranslation('contactsPage')
 	const dispatch = useDispatch<AppDispatch>()
 	const config = useSelector((state: RootState) => state.config)
 	const contacts = useSelector((state: RootState) => state.contacts)
@@ -47,7 +49,9 @@ const ContactsPage = ({ children }: RouterProps) => {
 	const [openContactMoreDownMenuId, setOpenContactMoreDownMenuId] = useState('')
 
 	const [activeTabLabel, setActiveTabLabel] = useState('contacts')
-	const history = useNavigate()
+	const navigate = useNavigate()
+	const [searchParams] = useSearchParams()
+
 	useEffect(() => {
 		// setTimeout(() => {
 		// 	setOpenNewGroupDropDownMenu(true)
@@ -57,9 +61,11 @@ const ContactsPage = ({ children }: RouterProps) => {
 		<>
 			<Helmet>
 				<title>
-					{t('appTitle', {
-						ns: 'common',
-					})}
+					{t('pageTitle') +
+						' - ' +
+						t('appTitle', {
+							ns: 'common',
+						})}
 				</title>
 			</Helmet>
 			<div className={'contacts-page ' + config.deviceType}>
@@ -69,7 +75,7 @@ const ContactsPage = ({ children }: RouterProps) => {
 					center
 					right
 					title-font-size='22px'
-					title='Contacts'
+					title={t('pageTitle')}
 				>
 					<div slot='right'>
 						<saki-dropdown
@@ -98,7 +104,7 @@ const ContactsPage = ({ children }: RouterProps) => {
 										type='AddUser'
 										margin='1px 0 0 0'
 									></saki-icon>
-									<span className='name'>Add Contact</span>
+									<span className='name'>{t('addContact')}</span>
 								</div>
 							</saki-button>
 							<div slot='main'>
@@ -137,7 +143,7 @@ const ContactsPage = ({ children }: RouterProps) => {
 													whiteSpace: 'nowrap',
 												}}
 											>
-												Add Contact
+												{t('addContact')}
 											</span>
 										</div>
 									</saki-menu-item>
@@ -154,7 +160,7 @@ const ContactsPage = ({ children }: RouterProps) => {
 													whiteSpace: 'nowrap',
 												}}
 											>
-												Join Group
+												{t('joinGroup')}
 											</span>
 										</div>
 									</saki-menu-item>
@@ -171,7 +177,7 @@ const ContactsPage = ({ children }: RouterProps) => {
 													whiteSpace: 'nowrap',
 												}}
 											>
-												New Group
+												{t('newGroup')}
 											</span>
 										</div>
 									</saki-menu-item>
@@ -196,7 +202,11 @@ const ContactsPage = ({ children }: RouterProps) => {
 						},
 					})}
 				>
-					<saki-tabs-item font-size='14px' label='contacts' name={'Contacts'}>
+					<saki-tabs-item
+						font-size='14px'
+						label='contacts'
+						name={t('pageTitle')}
+					>
 						{/* padding='20px 16px' */}
 						<saki-page-container full>
 							<div slot='header'></div>
@@ -210,6 +220,7 @@ const ContactsPage = ({ children }: RouterProps) => {
 														<saki-chat-layout-contact-item
 															key={i}
 															letter={v.userInfo?.letter}
+															avatar={v.userInfo?.avatar}
 															avatar-text={
 																!v.userInfo?.avatar ? v.userInfo?.nickname : ''
 															}
@@ -217,11 +228,10 @@ const ContactsPage = ({ children }: RouterProps) => {
 															username={'@' + v.userInfo?.uid}
 															display-icons-layout-width='auto'
 															display-icons-layout
-															last-seen-time={
-																(v?.lastSeenTime || 0) > 0
-																	? 'last seen time ' + v?.lastSeenTime
-																	: 'last seen time ssssssssssssssssss'
-															}
+															display-center-layout
+															last-seen-time={MeowWhisperCoreSDK.methods.getLastSeenTime(
+																Number(v?.userInfo?.lastSeenTime)
+															)}
 															hover-background-color='rgb(247,247,247)'
 														>
 															<div className='clp-contact-icons' slot='right'>
@@ -257,7 +267,17 @@ const ContactsPage = ({ children }: RouterProps) => {
 																					sort: -1,
 																				})
 																			)
-																			history?.('/chat')
+																			// history?.('/chat')
+																			navigate?.(
+																				Query(
+																					'/',
+																					{
+																						roomId: v.id || '',
+																					},
+																					searchParams
+																				),
+																				{}
+																			)
 																		},
 																	})}
 																	margin={'0 0 0 6px'}
@@ -345,7 +365,7 @@ const ContactsPage = ({ children }: RouterProps) => {
 																			})}
 																		>
 																			<saki-menu-item value='Delete'>
-																				Delete contact
+																				<span>{t('deleteContact')}</span>
 																			</saki-menu-item>
 																		</saki-menu>
 																	</div>
@@ -361,7 +381,7 @@ const ContactsPage = ({ children }: RouterProps) => {
 							</div>
 						</saki-page-container>
 					</saki-tabs-item>
-					<saki-tabs-item font-size='14px' label='group' name={'Group'}>
+					<saki-tabs-item font-size='14px' label='group' name={t('groups')}>
 						<saki-page-container full>
 							<div slot='header'></div>
 							<div slot='main'>
@@ -383,16 +403,16 @@ const ContactsPage = ({ children }: RouterProps) => {
 																},
 															})}
 															key={v.id}
+															avatar={v.avatar}
 															avatar-text={!v.avatar ? v.name : ''}
 															nickname={v.name}
 															username={''}
 															display-icons-layout-width='auto'
 															display-icons-layout
-															last-seen-time={
-																(v?.lastMessage || 0) > 0
-																	? 'last message time ' + v?.lastMessage
-																	: ''
-															}
+															display-center-layout
+															last-seen-time={MeowWhisperCoreSDK.methods.getLastMessageFullTime(
+																Number(v.lastMessageTime)
+															)}
 															hover-background-color='rgb(247,247,247)'
 														>
 															<div className='clp-contact-icons' slot='right'>
@@ -429,7 +449,17 @@ const ContactsPage = ({ children }: RouterProps) => {
 																					sort: -1,
 																				})
 																			)
-																			history?.('/chat')
+																			// history?.('/chat')
+																			navigate?.(
+																				Query(
+																					'/',
+																					{
+																						roomId: v.id || '',
+																					},
+																					searchParams
+																				),
+																				{}
+																			)
 																		},
 																	})}
 																	margin={'0 0 0 6px'}
@@ -505,9 +535,11 @@ const ContactsPage = ({ children }: RouterProps) => {
 																			})}
 																		>
 																			<saki-menu-item value='Delete'>
-																				{v.authorId === user.userInfo.uid
-																					? 'Disband group'
-																					: 'Leave group'}
+																				<span>
+																					{v.authorId === user.userInfo.uid
+																						? t('disbandGroup')
+																						: t('leaveGroup')}
+																				</span>
 																			</saki-menu-item>
 																		</saki-menu>
 																	</div>

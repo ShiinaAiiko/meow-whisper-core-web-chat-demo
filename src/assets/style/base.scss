@@ -234,3 +234,11 @@ button.aiiko {
 // 	body {
 // 	}
 // }
+
+.copytext {
+  cursor: pointer;
+  &:hover {
+    color: var(--saki-default-color);
+    text-decoration: underline;
+  }
+}

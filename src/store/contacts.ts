@@ -5,7 +5,13 @@ import {
 	configureStore,
 } from '@reduxjs/toolkit'
 import md5 from 'blueimp-md5'
-import store, { ActionParams, configSlice, RootState } from '.'
+import store, {
+	ActionParams,
+	configSlice,
+	messagesSlice,
+	methods,
+	RootState,
+} from '.'
 import { PARAMS, protoRoot } from '../protos'
 import {
 	WebStorage,
@@ -24,7 +30,7 @@ export const modeName = 'contacts'
 // export let meowWhisperCoreSDK: MeowWhisperCoreSDK | undefined
 
 export interface FriendItem extends protoRoot.contact.IContact {
-	userInfo: protoRoot.user.ISimpleAnonymousUserInfo | null | undefined
+	userInfo: protoRoot.user.ISimpleSSOUserInfo | null | undefined
 }
 
 const state: {
@@ -65,13 +71,14 @@ export const contactsMethods = {
 	>(modeName + '/getContactList', async (_, thunkAPI) => {
 		const { mwc, user, contacts } = thunkAPI.getState()
 		const getCoantacts = await mwc.sdk?.api.contact.getContactList()
-		console.log('getCoantacts', user, getCoantacts)
+		console.log('getContacts', user, getCoantacts)
 		if (getCoantacts?.code === 200 && getCoantacts.data?.list?.length) {
 			let list = getCoantacts.data.list.map((v) => {
 				const u = v.users?.filter((v) => {
+					// console.log(v.uid, user.userInfo.uid)
 					return v.uid !== user.userInfo.uid
 				})?.[0]?.userInfo
-
+				console.log(u)
 				return {
 					...v,
 					userInfo: u,
@@ -84,6 +91,7 @@ export const contactsMethods = {
 				)
 			})
 			list.forEach((v) => {
+				// console.log(v.userInfo?.uid || '', v)
 				mwc.cache.userInfo?.set(v.userInfo?.uid || '', v)
 			})
 			thunkAPI.dispatch(contactsSlice.actions.setContacts(list))
@@ -92,6 +100,41 @@ export const contactsMethods = {
 		}
 		thunkAPI.dispatch(contactsSlice.actions.setIsInit(true))
 	}),
+	updateListAfterDeleteCcontacts: createAsyncThunk<
+		void,
+		{
+			uid: string
+			roomId: string
+		},
+		{
+			state: RootState
+		}
+	>(
+		modeName + '/updateListAfterDeleteCcontacts',
+		async ({ uid, roomId }, thunkAPI) => {
+			const { mwc, user, contacts, messages } = thunkAPI.getState()
+
+			if (!uid || !roomId) return
+
+			thunkAPI.dispatch(
+				contactsSlice.actions.setContacts(
+					contacts.list.filter((v) => v.userInfo?.uid !== uid)
+				)
+			)
+			thunkAPI.dispatch(
+				messagesSlice.actions.setRecentChatDialogueList(
+					messages.recentChatDialogueList.filter((v) => v.id !== uid)
+				)
+			)
+
+			thunkAPI.dispatch(
+				messagesSlice.actions.deleteMessageMap({
+					roomId: roomId,
+				})
+			)
+			thunkAPI.dispatch(configSlice.actions.setModalUserId(''))
+		}
+	),
 	deleteContact: createAsyncThunk<
 		void,
 		{
@@ -101,8 +144,6 @@ export const contactsMethods = {
 			state: RootState
 		}
 	>(modeName + '/deleteContact', async ({ uid }, thunkAPI) => {
-		const { mwc, user, contacts } = thunkAPI.getState()
-
 		alert({
 			title: 'Delete',
 			content: '确定删除此好友？',
@@ -110,6 +151,7 @@ export const contactsMethods = {
 			confirmText: 'Delete',
 			onCancel() {},
 			async onConfirm() {
+				const { mwc, user, contacts, messages } = thunkAPI.getState()
 				const res = await mwc.sdk?.api.contact.deleteContact({
 					uid,
 				})
@@ -119,12 +161,13 @@ export const contactsMethods = {
 					message = '已经不是好友了哦'
 				} else if (res?.code === 200) {
 					message = '删除成功！'
-					thunkAPI.dispatch(
-						contactsSlice.actions.setContacts(
-							contacts.list.filter((v) => v.userInfo?.uid !== uid)
-						)
+
+					await store.dispatch(
+						methods.contacts.updateListAfterDeleteCcontacts({
+							uid: uid || '',
+							roomId: res.data.roomId || '',
+						})
 					)
-					thunkAPI.dispatch(configSlice.actions.setModalUserId(''))
 				} else {
 					message = '好友删除失败了，请重新尝试'
 				}
@@ -142,22 +185,22 @@ export const contactsMethods = {
 	getContactInfo: createAsyncThunk<
 		Promise<FriendItem | undefined>,
 		{
-			uid: string
+			userId: string
 		},
 		{
 			state: RootState
 		}
-	>(modeName + '/getContactInfo', async ({ uid }, thunkAPI) => {
+	>(modeName + '/getContactInfo', async ({ userId }, thunkAPI) => {
 		const { mwc, user, contacts } = thunkAPI.getState()
 
 		const res = await mwc.sdk?.api.contact.searchContact({
-			uid,
+			userId,
 		})
 		// console.log(res, uid)
 		if (res?.code === 200) {
 			if (res.data.isFriend) {
 				let cListU = contacts.list.filter((v) => {
-					return v.userInfo?.uid === uid
+					return v.userInfo?.uid === userId || v.userInfo?.username === userId
 				})?.[0]
 				return {
 					...cListU,
@@ -171,23 +214,60 @@ export const contactsMethods = {
 			return undefined
 		}
 	}),
-	addContact: createAsyncThunk<
+	updateListAfterAddCcontacts: createAsyncThunk<
 		void,
 		{
 			uid: string
+			roomId: string
+		},
+		{
+			state: RootState
+		}
+	>(
+		modeName + '/updateListAfterAddCcontacts',
+		async ({ uid, roomId }, thunkAPI) => {
+			const { mwc, user } = thunkAPI.getState()
+
+			if (!uid || !roomId) return
+			await store.dispatch(methods.messages.joinRoom([roomId]))
+
+			await store.dispatch(methods.contacts.getContactList())
+			const { contacts } = store.getState()
+			contacts.list.some(async (v) => {
+				if (v.userInfo?.uid === uid) {
+					store.dispatch(
+						methods.messages.setChatDialogue({
+							roomId: v.id || '',
+							type: 'Contact',
+							id: v.userInfo?.uid || '',
+							showMessageContainer: true,
+							unreadMessageCount: -2,
+							sort: -1,
+						})
+					)
+					return true
+				}
+			})
+		}
+	),
+	addContact: createAsyncThunk<
+		string,
+		{
+			userId: string
 			remark: string
 		},
 		{
 			state: RootState
 		}
-	>(modeName + '/addContact', async ({ uid, remark }, thunkAPI) => {
+	>(modeName + '/addContact', async ({ userId, remark }, thunkAPI) => {
 		const { mwc, user, contacts } = thunkAPI.getState()
 
 		const add = await mwc.sdk?.api.contact.addContact({
-			uid,
+			userId,
 			remark,
 		})
 		console.log(add)
+		// Added
 		let message = ''
 		if (add?.code === 200) {
 			message = '好友添加成功！'
@@ -200,8 +280,15 @@ export const contactsMethods = {
 				color: '#fff',
 			}).open()
 
-			await thunkAPI.dispatch(contactsMethods.getContactList())
+			await thunkAPI.dispatch(
+				methods.contacts.updateListAfterAddCcontacts({
+					uid: add.data.uid || '',
+					roomId: add.data.roomId || '',
+				})
+			)
+			return add.data.type === 'Added' ? add.data.roomId || '' : ''
 		}
+		return ''
 	}),
 	getUserCache: createAsyncThunk<
 		void,

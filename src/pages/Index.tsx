@@ -30,7 +30,7 @@ import { getDialogueInfo, Query } from '../modules/methods'
 import MeowWhisperCoreSDK from '../modules/MeowWhisperCoreSDK'
 
 const ChatPage = ({ children }: RouterProps) => {
-	const { t, i18n } = useTranslation('ChatPage')
+	const { t, i18n } = useTranslation('messagesPage')
 	const dispatch = useDispatch<AppDispatch>()
 	const config = useSelector((state: RootState) => state.config)
 	const user = useSelector((state: RootState) => state.user)
@@ -46,23 +46,45 @@ const ChatPage = ({ children }: RouterProps) => {
 	const [searchParams] = useSearchParams()
 
 	useEffect(() => {
+		if (!messages.isInitChatDialogue) return
 		let id = searchParams.get('roomId')
-		if (messages.activeRoomInfo?.roomId !== id) {
-			let index = -1
-			if (id) {
-				messages.recentChatDialogueList.some((v, i) => {
-					if (v.roomId === id) {
-						index = i
-						return true
-					}
-				})
-				// navigate?.('/' + Query({}, searchParams), {
-				// 	replace: true,
-				// })
-			}
-			setActiveRoomIndex(index)
+		let index = -1
+		if (id) {
+			messages.recentChatDialogueList.some((v, i) => {
+				if (v.roomId === id) {
+					index = i
+					return true
+				}
+			})
 		}
-	}, [searchParams.get('roomId'), messages.recentChatDialogueList])
+		// console.log(
+		// 	'indexindex',
+		// 	messages.isInitChatDialogue,
+		// 	messages.recentChatDialogueList,
+		// 	index,
+		// 	messages.activeRoomInfo?.roomId,
+		// 	id
+		// )
+		messages.activeRoomInfo?.roomId !== id && setActiveRoomIndex(index)
+		if (index === -1 && messages.isInitChatDialogue) {
+			navigate?.(
+				Query(
+					'/',
+					{
+						roomId: '',
+					},
+					searchParams
+				),
+				{
+					replace: true,
+				}
+			)
+		}
+	}, [
+		searchParams.get('roomId'),
+		messages.recentChatDialogueList.length,
+		messages.isInitChatDialogue,
+	])
 
 	useEffect(() => {
 		// console.log('getRecentChatDialogueList', messages.recentChatDialogueList)
@@ -87,7 +109,7 @@ const ChatPage = ({ children }: RouterProps) => {
 		<>
 			<Helmet>
 				<title>
-					{'Messages' +
+					{t('pageTitle') +
 						' - ' +
 						t('appTitle', {
 							ns: 'common',
@@ -103,7 +125,7 @@ const ChatPage = ({ children }: RouterProps) => {
 				>
 					<div className='cp-sidebar-header' slot='sidebar-header'>
 						<saki-title margin='10px' level='1' color='#000'>
-							Messages
+							{t('pageTitle')}
 						</saki-title>
 						<div className='cp-h-search'>
 							<saki-input
@@ -147,7 +169,7 @@ const ChatPage = ({ children }: RouterProps) => {
 											margin: '0 0 4px 0',
 										}}
 									>
-										正在获取聊天记录
+										{t('loadingChatData')}
 									</span>
 								</saki-col>
 							</saki-row>
@@ -229,13 +251,8 @@ const ChatPage = ({ children }: RouterProps) => {
 						}}
 						slot='message-container'
 					>
-						<img src='/logo-256x256.png' alt='' />
-						<div className='mc-title'>
-							{t('appTitle', {
-								ns: 'common',
-							})}
-							, 享受自由的乐趣
-						</div>
+						<img src='./icons/256x256.png' alt='' />
+						<div className='mc-title'>{t('introduction')}</div>
 					</div>
 					<div
 						style={{
@@ -331,8 +348,8 @@ const ChatPage = ({ children }: RouterProps) => {
 					>
 						{messages.recentChatDialogueList[dialogContextMenuIndex]?.type ===
 						'Group'
-							? 'View group info'
-							: 'View profile'}
+							? t('viewGroupInfo')
+							: t('viewProfile')}
 					</div>
 				</saki-context-menu-item>
 				<saki-context-menu-item value='ClearHistory'>
@@ -341,7 +358,7 @@ const ChatPage = ({ children }: RouterProps) => {
 							fontSize: '13px',
 						}}
 					>
-						Clear history
+						{t('clearHistory')}
 					</div>
 				</saki-context-menu-item>
 				<saki-context-menu-item value='HideConversation'>
@@ -351,7 +368,7 @@ const ChatPage = ({ children }: RouterProps) => {
 							fontSize: '13px',
 						}}
 					>
-						Hide conversation
+						{t('hideConversation')}
 					</div>
 				</saki-context-menu-item>
 			</saki-context-menu>

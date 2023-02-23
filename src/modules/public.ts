@@ -1,5 +1,4 @@
 // import { interceptors } from './request'
-import { interceptors } from '@nyanyajs/utils/dist/request'
 import store from '../store'
 import { protoRoot, FoeEachLongToNumber, PARAMS, Request } from '../protos'
 import { Buffer } from 'buffer'
