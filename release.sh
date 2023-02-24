@@ -99,6 +99,7 @@ logs() {
 }
 
 el:icon() {
+  rm -rf $DIR/public/icons
   sudo cp -r $DIR/public/logo.png $DIR/electron/logo.png
   cd ./electron
   yarn el:icon
@@ -107,10 +108,20 @@ el:icon() {
   cp -r $DIR/electron/icons $DIR/public/icons
   rm -rf $DIR/electron/logo.png
   rm -rf $DIR/electron/icons
+
+  rm -rf $DIR/public/icons-wb
+  sudo cp -r $DIR/public/logo-white-bg.png $DIR/electron/logo.png
+  cd ./electron
+  yarn el:icon
+  cd ../
+
+  cp -r $DIR/electron/icons $DIR/public/icons-wb
+  rm -rf $DIR/electron/logo.png
+  rm -rf $DIR/electron/icons
 }
 
 el:build() {
-  # el:icon
+  el:icon
   # yarn el:icon
 
   cp -r $DIR/$electronConfigFilePath $DIR/src/config.temp.json
