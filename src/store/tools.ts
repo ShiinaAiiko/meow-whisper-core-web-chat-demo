@@ -88,7 +88,7 @@ export const toolsMethods = {
 			console.log('发送通知')
 			const n = new Notification(title, {
 				body: body,
-				icon: icon || '/logo192.png',
+				icon: icon || './icons/256x256.png',
 				timestamp: 2,
 			})
 

@@ -64,7 +64,7 @@ const CallComponent = () => {
 							hangup()
 							return
 						}
-						if (count % 3 === 0) {
+						if (count % 5 === 0) {
 							console.log('开始重新邀请')
 							await mwc.sdk?.api.message.startCalling({
 								roomId: call.options.roomId,

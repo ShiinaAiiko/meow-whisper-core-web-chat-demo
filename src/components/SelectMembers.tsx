@@ -114,6 +114,7 @@ const SelectMembersComponent = ({
 							key={i}
 							avatar-text={!v?.avatar ? v?.nickname : ''}
 							nickname={v?.nickname}
+							avatar={v?.avatar}
 							delete-icon
 							margin='0 6px 6px 0'
 							ref={bindEvent({
@@ -135,14 +136,14 @@ const SelectMembersComponent = ({
 						<saki-checkbox
 							ref={bindEvent({
 								selectvalue: (e) => {
-									// console.log(
-									// 	e,
-									// 	e.detail.values,
-									// 	friendsMap,
-									// 	e.detail.values.map((v: any) => {
-									// 		return friendsMap[v]
-									// 	})
-									// )
+									console.log(
+										e,
+										e.detail.values,
+										// friendsMap,
+										// e.detail.values.map((v: any) => {
+										// 	return friendsMap[v]
+										// })
+									)
 									console.log(membersMap)
 									setSelectMember(
 										e.detail.values.map((v: any) => {
@@ -176,6 +177,7 @@ const SelectMembersComponent = ({
 												padding='0 10px 0 6px'
 												avatar-text={!v?.avatar ? v?.nickname : ''}
 												nickname={v?.nickname}
+                        avatar={v?.avatar}
 												nickname-font-size='14px'
 												hover-background-color='rgba(0,0,0,0)'
 												username={v.bio}
