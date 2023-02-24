@@ -242,7 +242,7 @@ const ChatPage = ({ children }: RouterProps) => {
 						}}
 						slot='message-container'
 					>
-						<img src='./icons/256x256.png' alt='' />
+						<img src={config.logo256} alt='' />
 						<div className='mc-title'>{t('introduction')}</div>
 					</div>
 					<div

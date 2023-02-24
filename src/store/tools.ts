@@ -83,12 +83,12 @@ export const toolsMethods = {
 	>(
 		modeName + '/sendNotification',
 		async ({ title, body, icon, sound, timeout }, thunkAPI) => {
-			const { mwc, contacts, group, user } = thunkAPI.getState()
+			const { mwc, contacts, config, group, user } = thunkAPI.getState()
 
 			console.log('发送通知')
 			const n = new Notification(title, {
 				body: body,
-				icon: icon || './icons/256x256.png',
+				icon: icon || config.logo256,
 				timestamp: 2,
 			})
 

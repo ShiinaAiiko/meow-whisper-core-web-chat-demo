@@ -21,7 +21,7 @@ import { api } from '../modules/electron/api'
 const HeaderComponent = () => {
 	const { t, i18n } = useTranslation('index-header')
 	const config = useSelector((state: RootState) => state.config)
-	
+
 	const appStatus = useSelector((state: RootState) => state.config.status)
 	const user = useSelector((state: RootState) => state.user)
 
@@ -37,7 +37,7 @@ const HeaderComponent = () => {
 	const location = useLocation()
 	const history = useNavigate()
 
-	// console.log("useruseruser",user)
+	console.log('useruseruser', location)
 
 	useEffect(() => {
 		// console.log(
@@ -81,7 +81,7 @@ const HeaderComponent = () => {
 									ns: 'common',
 								})}
 							>
-								<img src={'./icons/256x256.png'} alt='' />
+								<img src={config.logo256} alt='' />
 								<span className='text-elipsis'>
 									{t('appTitle', {
 										ns: 'common',

@@ -147,6 +147,7 @@ let appearance: {
 }
 
 let initialState = {
+	logo256: platform === 'Electron' ? './' : '/' + 'icons/256x256.png',
 	layout: {
 		backIcon: false,
 		showCenter: false,

@@ -278,7 +278,7 @@ const ChatLayout = ({ children }: RouterProps) => {
 					})}
 				</div> */}
 						<div className='loading-logo'>
-							<img src={'./icons/256x256.png'} alt='' />
+							<img src={config.logo256} alt='' />
 						</div>
 						{/* <div>progressBar, {progressBar}</div> */}
 						<div className='loading-progress-bar'>
