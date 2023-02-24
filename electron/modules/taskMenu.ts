@@ -119,7 +119,8 @@ export const createTaskMenu = async (type?: 'pink' | 'white') => {
 
 	let icon = logo256
 	// let icon = type === 'pink' ? taskIcon : taskWhiteIcon
-	appTray = new Tray(icon)
+  appTray = new Tray(icon)
+  
 	// console.log(appTray)
 	// console.log(iconDir)
 	//图标的上下文菜单

@@ -31,6 +31,7 @@ import { room } from '../protos/proto'
 
 import { SFUClient, SFUSignal, SFUStream } from '@nyanyajs/utils/dist/ionSfuSdk'
 import { ConnectionQualityStats } from '@nyanyajs/utils/dist/ionSfuSdk/stream'
+import { api } from '../modules/electron/api'
 
 export let callAlert: ReturnType<typeof alert> | undefined
 export let setCallAlert = (b: typeof callAlert) => {
@@ -1072,6 +1073,7 @@ export const callMethods = {
 				thunkAPI.dispatch(methods.call.hangup(true))
 				return
 			}
+			api.showWindow()
 
 			const mv = messages.messagesMap[roomId]
 			const dialog = messages.recentChatDialogueList.filter((v) => {

@@ -86,10 +86,10 @@ export const systemConfig = new NodeFsStorage<any>({
 	// 	key: 'meow-sticky-note',
 	// },
 })
-export const notes = new NodeFsStorage<any>({
-	label: labelPrefix + 'notes',
-	cacheRootDir: cacheRootDir + '/' + name + '/u',
-})
+// export const notes = new NodeFsStorage<any>({
+// 	label: labelPrefix + 'notes',
+// 	cacheRootDir: cacheRootDir + '/' + name + '/u',
+// })
 export const global = new NodeFsStorage<any>({
 	label: labelPrefix + 'global',
 	cacheRootDir: cacheRootDir + '/' + name + '/u',

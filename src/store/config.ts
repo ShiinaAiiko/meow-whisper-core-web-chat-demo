@@ -77,7 +77,12 @@ export const configMethods = {
 	getDeviceType: createAsyncThunk(
 		modeName + '/getDeviceType',
 		(_, thunkAPI) => {
-			console.log('getDeviceType', window.innerWidth)
+			console.log(
+				'getDeviceType',
+				window.innerWidth,
+				window.innerHeight,
+				window.outerHeight
+			)
 
 			if (window.innerWidth < 768) {
 				thunkAPI.dispatch(configSlice.actions.setDeviceType('Mobile'))
@@ -372,15 +377,20 @@ export const configSlice = createSlice({
 		},
 		setAutomaticallyStart: (state, params: ActionParams<boolean>) => {
 			state.general.automaticallyStart = params.payload
-			storage.global.setSync(
-				'automaticallyStart',
-				JSON.stringify(params.payload)
-			)
+
 			setTimeout(async () => {
-				console.log(
-					"await storage.global.get('automaticallyStart')",
-					await storage.global.get('automaticallyStart')
+				await storage.global.set(
+					'automaticallyStart',
+					JSON.stringify(params.payload)
 				)
+
+				api.updateSetting({
+					type: 'automaticallyStart',
+				})
+				// console.log(
+				// 	"await storage.global.get('automaticallyStart')",
+				// 	await storage.global.get('automaticallyStart')
+				// )
 			})
 		},
 		setNetworkStatus: (state, params: ActionParams<boolean>) => {

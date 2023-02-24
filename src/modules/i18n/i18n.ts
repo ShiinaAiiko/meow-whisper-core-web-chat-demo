@@ -170,7 +170,7 @@ const resources = {
 			logoutSuccessfully: '成功退出賬戶',
 			login: '登錄',
 			cancel: '取消',
-			next: '接下來',
+			next: '下一步',
 			add: '添加',
 			create: '創建',
 			rename: '改名',

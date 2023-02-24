@@ -85,6 +85,7 @@
 	},
 	"dependencies": {
 		"@nyanyajs/utils": "^1.0.17",
+		"auto-launch": "^5.0.5",
 		"blueimp-md5": "^2.19.0",
 		"electron-is-dev": "^2.0.0",
 		"electron-reload": "^2.0.0-alpha.1"

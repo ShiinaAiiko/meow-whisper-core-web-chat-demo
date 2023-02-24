@@ -21,6 +21,7 @@ import { FriendItem } from '../store/contacts'
 import { deepCopy } from '@nyanyajs/utils'
 import MeowWhisperCoreSDK from '../modules/MeowWhisperCoreSDK'
 import { Query } from '../modules/methods'
+import { baseUrl } from '../config'
 
 const UserInfoComponent = () => {
 	const { t, i18n } = useTranslation('modal')
@@ -322,7 +323,7 @@ const UserInfoComponent = () => {
 															dispatch(
 																methods.tools.copy({
 																	content:
-																		window.location.origin +
+																		baseUrl +
 																		'/invite/' +
 																		uInfo?.userInfo?.uid +
 																		'?t=0',

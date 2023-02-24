@@ -12,7 +12,7 @@ import store, {
 import './Settings.scss'
 import { bindEvent } from '../modules/bindEvent'
 
-import { sakisso } from '../config'
+import { baseUrl, sakisso } from '../config'
 
 import moment from 'moment'
 
@@ -395,9 +395,8 @@ const Account = ({ show }: { show: boolean }) => {
 	const config = useSelector((state: RootState) => state.config)
 	const sso = useSelector((state: RootState) => state.sso)
 
-	const shareUrl = window.location.origin + '/invite/' + userInfo.uid + '?t=0'
-	const shortShareUrl =
-		window.location.host + '/invite/' + userInfo.uid + '?t=0'
+	const shareUrl = baseUrl + '/invite/' + userInfo.uid + '?t=0'
+	const shortShareUrl = baseUrl + '/invite/' + userInfo.uid + '?t=0'
 
 	const [updateProfile, setUpdateProfile] = useState(false)
 	// useEffect(() => {
@@ -847,7 +846,7 @@ const About = ({ show }: { show: boolean }) => {
 			className='setting-about-page'
 		>
 			<div className='version-info'>
-				<img src='./logo192.png' alt='' />
+				<img src={'./icons/256x256.png'} alt='' />
 				<div className='version-code'>
 					<span>Version v{config.version}</span>
 				</div>

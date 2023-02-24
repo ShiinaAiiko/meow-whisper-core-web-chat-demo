@@ -21,6 +21,7 @@ import { Query } from '../modules/methods'
 import MeowWhisperCoreSDK from '../modules/MeowWhisperCoreSDK'
 import { images } from '@nyanyajs/utils'
 import md5 from 'blueimp-md5'
+import { baseUrl } from '../config'
 
 const GroupInfoComponent = () => {
 	const { t, i18n } = useTranslation('modal')
@@ -372,7 +373,7 @@ const GroupInfoComponent = () => {
 														dispatch(
 															methods.tools.copy({
 																content:
-																	window.location.origin +
+																	baseUrl +
 																	'/invite/' +
 																	groupInfo?.id +
 																	'?t=1',

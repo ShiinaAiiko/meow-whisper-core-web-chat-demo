@@ -21,7 +21,7 @@ import { initShortcut } from './modules/shortcut'
 import { initAppearance } from './modules/appearance'
 import { createTaskMenu } from './modules/taskMenu'
 import { initRouter } from './router/router'
-import { backup } from './modules/methods'
+// import { backup } from './modules/methods'
 import { openMainWindows, windows } from './modules/windows'
 import * as nyanyalog from 'nyanyajs-log'
 import { t } from './modules/languages'
@@ -64,10 +64,10 @@ const run = () => {
 		initShortcut()
 		await createTaskMenu()
 		openMainWindows()
-		await backup()
-		setInterval(async () => {
-			await backup()
-		}, 3600 * 1000)
+		// await backup()
+		// setInterval(async () => {
+		// 	await backup()
+		// }, 3600 * 1000)
 	}
 
 	const isFirstInstance = app.requestSingleInstanceLock()

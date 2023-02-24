@@ -11,8 +11,8 @@ import { APIParams } from '../typings/api'
 
 import { windows, openMainWindows } from '../modules/windows'
 import { mode, setMode } from '../modules/appearance'
-import { setLanguages, logo, systemConfig } from '../config'
-import { saveAs, openFolder, backup } from '../modules/methods'
+import { setLanguages, logo, systemConfig, global } from '../config'
+import { saveAs, openFolder, autoLauncher } from '../modules/methods'
 import * as nyanyalog from 'nyanyajs-log'
 
 export const R = (
@@ -136,11 +136,20 @@ export const initRouter = () => {
 
 	ipcMain.on(
 		'updateSetting',
-		R(({ window, data }) => {
+		R(async ({ window, data }) => {
 			switch (data.data.type) {
 				case 'language':
 					setLanguages()
 
+					break
+
+				case 'automaticallyStart':
+					const automaticallyStart = await global.get('automaticallyStart')
+					if (automaticallyStart === 'true') {
+						autoLauncher.enable()
+					} else {
+						autoLauncher.disable()
+					}
 					break
 
 				default:
@@ -178,10 +187,10 @@ export const initRouter = () => {
 		})
 	)
 
-	ipcMain.on(
-		'backup',
-		R(({ window, data }) => {
-			backup(data.data.backupNow)
-		})
-	)
+	// ipcMain.on(
+	// 	'backup',
+	// 	R(({ window, data }) => {
+	// 		backup(data.data.backupNow)
+	// 	})
+	// )
 }

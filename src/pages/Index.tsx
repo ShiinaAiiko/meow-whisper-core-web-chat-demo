@@ -127,7 +127,7 @@ const ChatPage = ({ children }: RouterProps) => {
 						<saki-title margin='10px' level='1' color='#000'>
 							{t('pageTitle')}
 						</saki-title>
-						<div className='cp-h-search'>
+						{/* <div className='cp-h-search'>
 							<saki-input
 								height='40px'
 								padding='0 0px'
@@ -138,16 +138,7 @@ const ChatPage = ({ children }: RouterProps) => {
 								border-radius='10px'
 								placeholder=''
 							/>
-
-							{/* </div>
-								</div>
-								<div
-									className='cp-sidebar-main'
-									slot='sidebar-main'
-								>
-									{/* MessagesDialogList */}
-							{/* <MessagesDialogList /> */}
-						</div>
+						</div> */}
 					</div>
 					<div slot='sidebar-main'>
 						{messages.getMessageStatus !== 'GetSuccess' &&

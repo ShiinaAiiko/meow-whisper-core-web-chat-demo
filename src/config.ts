@@ -3,6 +3,7 @@ import * as Ion from 'ion-sdk-js/lib/connector'
 // import { config } from 'process'
 baselog.Info('Env:', process.env.NODE_ENV)
 
+let baseUrl = ''
 let version = ''
 let sakisso = {
 	appId: '',
@@ -51,6 +52,7 @@ if (origin === 'file://') {
 // console.log('origin', origin)
 
 interface Config {
+	baseUrl: typeof baseUrl
 	version: typeof version
 	sakisso: typeof sakisso
 	// serverApi: typeof serverApi
@@ -68,6 +70,7 @@ try {
 	// console.log('configJson', configJson)
 	if (configJson) {
 		version = pkg.version
+		baseUrl = configJson.baseUrl
 		sakisso = configJson.sakisso
 		// serverApi = configJson.serverApi
 		// nsocketio = configJson.nsocketio
@@ -82,6 +85,7 @@ try {
 	console.log(error)
 }
 export {
+	baseUrl,
 	version,
 	// serverApi,
 	sakiui,
