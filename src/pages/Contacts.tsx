@@ -222,7 +222,7 @@ const ContactsPage = ({ children }: RouterProps) => {
 															letter={v.userInfo?.letter}
 															avatar={v.userInfo?.avatar}
 															avatar-text={
-																!v.userInfo?.avatar ? v.userInfo?.nickname : ''
+																!v.userInfo?.avatar ? v.userInfo?.nickname?.toUpperCase() : ''
 															}
 															nickname={v.userInfo?.nickname}
 															username={'@' + v.userInfo?.uid}
@@ -404,7 +404,7 @@ const ContactsPage = ({ children }: RouterProps) => {
 															})}
 															key={v.id}
 															avatar={v.avatar}
-															avatar-text={!v.avatar ? v.name : ''}
+															avatar-text={!v.avatar ? v.name?.toUpperCase() : ''}
 															nickname={v.name}
 															username={''}
 															display-icons-layout-width='auto'

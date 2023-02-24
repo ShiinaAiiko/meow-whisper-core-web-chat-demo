@@ -176,7 +176,7 @@ const SelectMembersComponent = ({
 											<saki-chat-layout-contact-item
 												padding='0 10px 0 6px'
 												avatar-text={!v?.avatar ? v?.nickname : ''}
-												nickname={v?.nickname}
+												nickname={v?.nickname?.toUpperCase()}
                         avatar={v?.avatar}
 												nickname-font-size='14px'
 												hover-background-color='rgba(0,0,0,0)'

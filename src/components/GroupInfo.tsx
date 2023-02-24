@@ -181,7 +181,7 @@ const GroupInfoComponent = () => {
 												outpur-height='400'
 												output-quality='0.8'
 												src={avatar?.base64Url || groupInfo?.avatar || ''}
-												nickname={!groupInfo?.avatar ? groupInfo?.name : ''}
+												nickname={!groupInfo?.avatar ? groupInfo?.name?.toUpperCase() : ''}
 												edit-icon
 												edit-icon-show-mode={
 													avatar?.base64Url || groupInfo?.avatar

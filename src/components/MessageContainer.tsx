@@ -438,7 +438,7 @@ const MessageContainerComponent = ({
 									},
 								})}
 								back-icon={config.deviceType === 'Mobile'}
-								avatar-text={!avatar ? nickname : ''}
+								avatar-text={!avatar ? nickname?.toUpperCase() : ''}
 								avatar={avatar}
 								nickname={nickname}
 								desc={
@@ -915,7 +915,7 @@ const MessageContainerComponent = ({
 													display-time
 													user-info-display-mode='Full'
 													avatar={u?.avatar}
-													nickname={u?.nickname}
+													nickname={u?.nickname?.toUpperCase()}
 													type={
 														v.authorId === user.userInfo.uid
 															? 'sender'

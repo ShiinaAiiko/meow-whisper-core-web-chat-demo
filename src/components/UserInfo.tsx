@@ -175,7 +175,7 @@ const UserInfoComponent = () => {
 											src={uInfo?.userInfo?.avatar}
 											nickname={
 												!uInfo?.userInfo?.avatar
-													? uInfo?.userInfo?.nickname
+													? uInfo?.userInfo?.nickname?.toUpperCase()
 													: ''
 											}
 										></saki-avatar>

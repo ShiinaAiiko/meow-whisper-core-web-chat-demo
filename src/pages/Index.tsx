@@ -216,7 +216,7 @@ const ChatPage = ({ children }: RouterProps) => {
 										})}
 										context-menu-active={dialogContextMenuIndex === i}
 										selected={v.roomId === searchParams.get('roomId')}
-										avatar-text={!info.avatar ? info.name : ''}
+										avatar-text={!info.avatar ? info.name?.toUpperCase() : ''}
 										nickname={info.name}
 										avatar={info.avatar}
 										count={v.unreadMessageCount}
