@@ -859,6 +859,19 @@ const MessageContainerComponent = ({
 														},
 														opencontextmenu: (e: any) => {
 															// console.log('opencontextmenu', e)
+															const el = e.target?.querySelector(
+																'.saki-richtext-content'
+															)
+															if (el) {
+																let range = document.createRange()
+																range.selectNodeContents(el)
+																let selection = window.getSelection()
+																selection?.removeAllRanges()
+																selection?.addRange(range)
+																// console.log(range)
+															}
+															// console.log(el?.setSelectionRange)
+															// el?.setSelectionRange?.(0, 10)
 															if (enbalSelect) {
 																selectMessage(v)
 																return
@@ -1798,6 +1811,8 @@ const MessageContainerComponent = ({
 									}
 								},
 								close: () => {
+									let selection = window.getSelection()
+									selection?.removeAllRanges()
 									setBubbleContextMenuIndex(-1)
 
 									// chatDialogList.dialogContextMenuIndex = -1
