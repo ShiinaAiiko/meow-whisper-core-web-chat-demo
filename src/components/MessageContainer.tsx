@@ -1853,6 +1853,7 @@ const MessageContainerComponent = ({
 										font-size={fontSize}
 										padding={padding}
 										value='Copy'
+										hide={!(m?.message)}
 									>
 										{t('copy', {
 											ns: 'common',
