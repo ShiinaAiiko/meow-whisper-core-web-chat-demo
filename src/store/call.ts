@@ -27,7 +27,6 @@ import { meowWhisperCore, sakisso } from '../config'
 import { userAgent } from './user'
 import { storage } from './storage'
 import { alert, snackbar } from '@saki-ui/core'
-import { room } from '../protos/proto'
 
 import { SFUClient, SFUSignal, SFUStream } from '@nyanyajs/utils/dist/ionSfuSdk'
 import { ConnectionQualityStats } from '@nyanyajs/utils/dist/ionSfuSdk/stream'

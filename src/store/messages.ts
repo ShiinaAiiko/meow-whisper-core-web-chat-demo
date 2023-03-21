@@ -31,7 +31,6 @@ import { meowWhisperCore, sakisso } from '../config'
 import { userAgent } from './user'
 import { storage } from './storage'
 import { alert, progressBar, snackbar } from '@saki-ui/core'
-import { room } from '../protos/proto'
 import { fileQueue } from './file'
 
 export const modeName = 'messages'

@@ -13,7 +13,6 @@ import nyanyalog from 'nyanyajs-log'
 import { RouterType } from '../MeowWhisperCoreSDK/mwc-nsocketio'
 
 import { RSA, DiffieHellman, deepCopy } from '@nyanyajs/utils'
-import { room } from '../../protos/proto'
 import { snackbar } from '@saki-ui/core'
 import { callAlert, setCallAlert } from '../../store/call'
 import { getDialogueInfo } from '../methods'
