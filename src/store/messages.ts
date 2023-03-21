@@ -548,7 +548,6 @@ export const messagesMethods = {
 		}
 	>(modeName + '/sendFileMessage', async ({ roomId, type }, thunkAPI) => {
 		console.log('sendFileMessage', roomId, type)
-		const { uploadFile, getHash } = SAaSS
 
 		let input = document.createElement('input')
 		input.type = 'file'

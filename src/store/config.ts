@@ -7,7 +7,7 @@ import {
 import md5 from 'blueimp-md5'
 import store, { ActionParams, methods } from '.'
 // import { WebStorage } from './ws'
-import { WebStorage } from '@nyanyajs/utils'
+import * as nyanyajs from '@nyanyajs/utils'
 import { storage } from './storage'
 import { getI18n } from 'react-i18next'
 
@@ -145,6 +145,10 @@ let appearance: {
 } = {
 	mode: 'system',
 }
+
+export const SAaSS = new nyanyajs.SAaSS({
+	baseUrl: '',
+})
 
 let initialState = {
 	logo256: (platform === 'Electron' ? './' : '/') + 'icons/256x256.png',

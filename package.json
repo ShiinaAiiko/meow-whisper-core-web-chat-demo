@@ -41,7 +41,7 @@
 		]
 	},
 	"dependencies": {
-		"@nyanyajs/utils": "^1.0.17",
+		"@nyanyajs/utils": "^1.0.18",
 		"@reduxjs/toolkit": "^1.8.3",
 		"@saki-ui/core": "^1.0.1",
 		"@testing-library/jest-dom": "^5.16.4",
@@ -54,7 +54,6 @@
 		"buffer": "^6.0.3",
 		"cross-env": "^7.0.3",
 		"i18next": "^21.10.0",
-		"protobufjs": "^6.11.2",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
 		"react-helmet": "^6.1.0",
@@ -74,6 +73,7 @@
 		"@types/socket.io-client": "^1.4.36",
 		"@types/uuid": "^8.3.4",
 		"customize-cra": "^1.0.0",
+		"protobufjs": "6.11.3",
 		"react-app-rewired": "^2.2.1",
 		"sass": "^1.53.0",
 		"terser-webpack-plugin": "^5.3.6",

@@ -7,10 +7,11 @@ import {
 import md5 from 'blueimp-md5'
 import store, { ActionParams, methods, RootState } from '.'
 import { PARAMS, protoRoot } from '../protos'
-import { WebStorage, SakiSSOClient, SAaSS, RunQueue } from '@nyanyajs/utils'
+import { WebStorage, SakiSSOClient, RunQueue } from '@nyanyajs/utils'
 import { MeowWhisperCoreSDK } from '../modules/MeowWhisperCoreSDK'
 import { meowWhisperCore, sakisso } from '../config'
 import { userAgent } from './user'
+import { SAaSS } from './config'
 import { storage } from './storage'
 import { snackbar } from '@saki-ui/core'
 import { FriendItem } from './contacts'
@@ -56,8 +57,8 @@ export const fileMethods = {
 						hash: hash,
 					},
 				})
-				// console.log('getUploadToken', res)
-				if (res?.code === 200) {
+				console.log('getUploadToken', res)
+        if (res?.code === 200) {
 					//         apiUrl: "http://192.168.0.106:16100/api/v1/chunkupload/upload"
 					// chunkSize: 262144
 					// token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaWxlSW5mbyI6eyJBcHBJZCI6IjFlODE2OTE0LTY0ZDItNDc3YS04ZTM1LTQyN2Q5NDdlY2Y1MCIsIk5hbWUiOiJQbmdJdGVtXzEyMTExMDgucG5nIiwiRW5jcnlwdGlvbk5hbWUiOiI4NmZlYmJhNTdiY2NkOGExODNhMTkyZWM2OTRmNzUzNSIsIlBhdGgiOiIvRjA5MzVFNENENTkyMEFBNkM3Qzk5NkE1RUU1M0E3MEYvZmlsZXMvIiwiVGVtcEZvbGRlclBhdGgiOiIuL3N0YXRpYy9jaHVjay8wMzJhYzZhMjQ2ZWI3ZTUxZTM3Mzc3YzNhYmE4YjM2NzE1NGZiMTUxMDFhOTI3NzY2NDA0MDRlMDlhZjkwMGJkLyIsIlRlbXBDaHVja0ZvbGRlclBhdGgiOiIuL3N0YXRpYy9jaHVjay8wMzJhYzZhMjQ2ZWI3ZTUxZTM3Mzc3YzNhYmE4YjM2NzE1NGZiMTUxMDFhOTI3NzY2NDA0MDRlMDlhZjkwMGJkLy9jaHVjay8iLCJDaHVua1NpemUiOjEzMTA3MiwiQ3JlYXRlVGltZSI6MTY1OTg5NDkwNCwiRXhwaXJhdGlvblRpbWUiOi0xLCJWaXNpdENvdW50IjotMSwiRmlsZUluZm8iOnsiTmFtZSI6IlBuZ0l0ZW1fMTIxMTEwOCIsIlNpemUiOjExMjAyLCJUeXBlIjoiaW1hZ2UvcG5nIiwiU3VmZml4IjoiLnBuZyIsIkxhc3RNb2RpZmllZCI6MTY1OTgxMzE3NjY0MSwiSGFzaCI6IjAzMmFjNmEyNDZlYjdlNTFlMzczNzdjM2FiYThiMzY3MTU0ZmIxNTEwMWE5Mjc3NjY0MDQwNGUwOWFmOTAwYmQifSwiRmlsZUNvbmZsaWN0IjoiUmVwbGFjZSJ9LCJleHAiOjE2NTk5ODEzMDQsImlzcyI6InNhYXNzIn0.nfwmBNpJAMCK31U_vG4dL3mRvkhKb7EnaAqji29X9Hw"
@@ -74,6 +75,8 @@ export const fileMethods = {
 							token: data.token,
 							chunkSize: data.chunkSize,
 							uploadedOffset: data.uploadedOffset || [],
+							uploadedTotalSize: data.uploadedTotalSize || 0,
+
 							async onprogress(options) {
 								console.log(options)
 								// await store.state.storage.staticFileWS.getAndSet(
@@ -90,7 +93,7 @@ export const fileMethods = {
 							},
 							async onsuccess(options) {
 								console.log(options)
-								resolve(data.urls?.domainUrl + options.encryptionUrl)
+								resolve(data.urls?.domainUrl + options.shortUrl)
 								// await store.state.storage.staticFileWS?.getAndSet(
 								// 	upload.data.urls?.encryptionUrl || '',
 								// 	async (v) => {
@@ -118,7 +121,7 @@ export const fileMethods = {
 							},
 						})
 					} else {
-						resolve(data.urls?.domainUrl + data.urls?.encryptionUrl)
+						resolve(data.urls?.domainUrl + res.data.urls?.shortUrl)
 					}
 				}
 			}
@@ -173,19 +176,21 @@ export const fileMethods = {
 							token: data.token,
 							chunkSize: data.chunkSize,
 							uploadedOffset: data.uploadedOffset || [],
+							uploadedTotalSize: data.uploadedTotalSize || 0,
+
 							async onprogress(options) {
 								// console.log(options)
 							},
 							async onsuccess(options) {
 								// console.log(options)
-								resolve(data.urls?.domainUrl + options.encryptionUrl)
+								resolve(data.urls?.domainUrl + options.shortUrl)
 							},
 							onerror(err) {
 								console.log('error', err)
 							},
 						})
 					} else {
-						resolve(data.urls?.domainUrl + data.urls?.encryptionUrl)
+						resolve(data.urls?.domainUrl + res.data.urls?.shortUrl)
 					}
 				}
 			}

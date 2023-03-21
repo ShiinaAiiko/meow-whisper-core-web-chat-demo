@@ -1,6 +1,5 @@
 import { protoRoot, PARAMS, Request } from '../../../../protos'
 import store from '../../../../store'
-import axios from 'axios'
 import { getUrl } from '..'
 
 export const v1 = {
