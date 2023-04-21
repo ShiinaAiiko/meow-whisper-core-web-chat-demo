@@ -10,7 +10,6 @@ import {
 import {
 	windows,
 	openMainWindows,
-	openQuickReviewWindows,
 	createWindow,
 } from './windows'
 //   Command（或Cmd简称）

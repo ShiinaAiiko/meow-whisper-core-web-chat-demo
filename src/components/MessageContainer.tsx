@@ -1376,7 +1376,8 @@ const MessageContainerComponent = ({
 											font-size='14px'
 											border-radius='0'
 											min-length='0'
-											max-length='10000'
+                      max-length='10000'
+                      clear-all-styles-when-pasting
 											enter={
 												config.deviceType === 'PC' ||
 												user.userAgent?.os?.name === 'Windows' ||
@@ -1581,7 +1582,7 @@ const MessageContainerComponent = ({
 														? MeowWhisperCoreSDK.methods.getLastSeenTime(
 																Number(v.lastSeenTime)
 														  ) || ''
-														: '',
+',														: '
 												selected: v.userInfo?.uid === user.userInfo.uid,
 												lastSeenTime: '',
 											}

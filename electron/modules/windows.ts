@@ -14,11 +14,7 @@ import isDev from 'electron-is-dev'
 import * as nyanyalog from 'nyanyajs-log'
 
 import { Route } from '../typings/api'
-import {
-	logo1024,
-	logo,
-	systemConfig,
-} from '../config'
+import { logo1024, logo, systemConfig } from '../config'
 
 export const windows = new Map<Route, BrowserWindow>()
 
@@ -52,10 +48,21 @@ export const createWindow = async (
 		app.dock.setIcon(logo1024)
 	}
 
+	// console.log(1212121212)
+	// console.log(
+	// 	screen.getPrimaryDisplay().workAreaSize.width,
+	// 	screen.getPrimaryDisplay().workAreaSize.height
+	// )
 	if (!x) {
 		window.center()
 	} else {
-		window.setPosition(x, y)
+		let sw = screen.getPrimaryDisplay().workAreaSize.width
+		let sh = screen.getPrimaryDisplay().workAreaSize.height
+		if (x > sw || h > sh || x < 0 || h < 0) {
+			window.center()
+		} else {
+			window.setPosition(x, y)
+		}
 	}
 	if (w && h) {
 		window.setSize(w, h)
@@ -160,39 +167,6 @@ export const openMainWindows = async () => {
 		hasShadow: true,
 		alwaysOnTop: false,
 		fullscreen: false,
-		// center: true,
-		// 可以隐藏窗口
-		frame: true,
-		// backgroundColor: 'rgba(0,0,0,0.3)',
-
-		webPreferences: {
-			devTools: false,
-			nodeIntegration: true,
-			contextIsolation: false,
-		},
-		visible: true,
-	})
-}
-
-export const openQuickReviewWindows = async () => {
-	let window = windows.get('/quickreview')
-	if (window) {
-		window.show()
-		// window.focus()
-		window.webContents.send('show')
-		return window
-	}
-	return await createWindow('/quickreview', {
-		title: 'Quick Review',
-		width: 960,
-		height: 600,
-		// x: 0,
-		// y: 500,
-		skipTaskbar: false,
-		hasShadow: true,
-		alwaysOnTop: false,
-		// transparent: true,
-		// fullscreen: false,
 		// center: true,
 		// 可以隐藏窗口
 		frame: true,

@@ -13,7 +13,6 @@ import {
 import {
 	windows,
 	openMainWindows,
-	openQuickReviewWindows,
 	createWindow,
 } from './windows'
 import { version } from '../package.json'
