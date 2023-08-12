@@ -1376,8 +1376,8 @@ const MessageContainerComponent = ({
 											font-size='14px'
 											border-radius='0'
 											min-length='0'
-                      max-length='10000'
-                      clear-all-styles-when-pasting
+											max-length='10000'
+											clear-all-styles-when-pasting
 											enter={
 												config.deviceType === 'PC' ||
 												user.userAgent?.os?.name === 'Windows' ||
@@ -1578,11 +1578,11 @@ const MessageContainerComponent = ({
 												avatar: v.userInfo?.avatar || '',
 												nickname: v.userInfo?.nickname || '',
 												bio:
-													(v?.lastSeenTime || 0) > 0
+													(Number(v?.lastSeenTime) || 0) > 0
 														? MeowWhisperCoreSDK.methods.getLastSeenTime(
 																Number(v.lastSeenTime)
 														  ) || ''
-',														: '
+														: '',
 												selected: v.userInfo?.uid === user.userInfo.uid,
 												lastSeenTime: '',
 											}
@@ -1670,7 +1670,7 @@ const MessageContainerComponent = ({
 											avatar: u.userInfo?.avatar || '',
 											nickname: u.userInfo?.nickname || '',
 											bio:
-												(u?.lastSeenTime || 0) > 0
+												(Number(u?.lastSeenTime) || 0) > 0
 													? MeowWhisperCoreSDK.methods.getLastSeenTime(
 															Number(u.lastSeenTime)
 													  ) || ''
@@ -1854,7 +1854,7 @@ const MessageContainerComponent = ({
 										font-size={fontSize}
 										padding={padding}
 										value='Copy'
-										hide={!(m?.message)}
+										hide={!m?.message}
 									>
 										{t('copy', {
 											ns: 'common',

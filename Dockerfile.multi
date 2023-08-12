@@ -1,4 +1,4 @@
-FROM node:16.15.1 as BUILD_IMAGE
+FROM node:18.17.1 as BUILD_IMAGE
 
 WORKDIR /app
 
@@ -10,7 +10,8 @@ COPY .yarnrc .npmrc /root/
 COPY package.json yarn.lock ./
 
 RUN \
-  yarn 
+  yarn install --registry https://registry.npm.aiiko.club
+
 
 COPY . .
 
@@ -18,11 +19,11 @@ RUN \
   cp -r ./config.pro.temp.json ./src/config.temp.json && \
   yarn protos && \
   yarn build && \
-  wget https://saki-ui.aiiko.club/saki-ui.tgz && \
+  wget https://saki-ui.aiiko.club/packages/saki-ui-v1.0.0.tgz -O saki-ui.tgz && \
   tar zxvf ./saki-ui.tgz -C ./build && \
   rm -rf ./saki-ui* 
 
-FROM node:16.13.1-alpine3.13
+FROM node:18.17.1-alpine3.18
 
 ENV CLIENT_ENV=production
 
@@ -33,8 +34,8 @@ COPY --from=BUILD_IMAGE \
   /dist
 
 RUN \ 
-  npm config set registry https://registry.npmmirror.com && \
-  yarn global add spa-http-server
+  yarn global add spa-http-server --registry https://registry.npmmirror.com/ && \
+  tar cvzf /build.tgz  -C /dist .
 
 EXPOSE 15311
 

@@ -40,3 +40,8 @@ config*.json
 /public/sfu.html
 /public/emoji/index.js
 /el-build
+
+ssh.sh
+
+.npmrc
+.yarnrc

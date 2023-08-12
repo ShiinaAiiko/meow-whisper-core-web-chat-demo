@@ -10,7 +10,7 @@ webConfigFilePath="config.pro.web.json"
 electronConfigFilePath="config.pro.electron.json"
 registryUrl="https://registry.npmmirror.com/"
 DIR=$(cd $(dirname $0) && pwd)
-allowMethods=("dockerlogs el:icon el:install el:run el:build push run protos stop npmconfig install gitpull dockerremove start logs")
+allowMethods=("unzip zip dockerlogs el:icon el:install el:run el:build push run protos stop npmconfig install gitpull dockerremove start logs")
 
 # yarn --registry https://registry.npmmirror.com/
 #  yarn add @nyanyajs/utils @saki-ui/core
@@ -79,6 +79,25 @@ start() {
     -p $port:$port \
     --restart=always \
     -d $name
+
+  echo "-> 整理文件资源"
+  docker cp $name:/build.tgz $DIR/build.tgz
+  stop
+
+  ./ssh.sh run
+
+  rm $DIR/build.tgz
+}
+
+unzip() {
+  rm -rf ./out
+  mkdir -p ./out
+  tar -zxvf ./build.tgz -C ./out/
+  rm -rf build.tgz
+}
+
+zip() {
+  tar cvzf /build.tgz -C /dist .
 }
 
 stop() {
@@ -176,7 +195,7 @@ el:install() {
 }
 
 download:saki-ui() {
-  wget https://saki-ui.aiiko.club/saki-ui.tgz
+  wget https://saki-ui.aiiko.club/packages/saki-ui-v1.0.0.tgz -O saki-ui.tgz
   tar zxvf ./saki-ui.tgz -C ./build
   rm -rf ./saki-ui*
 }
