@@ -63,6 +63,10 @@ export const initRouter = () => {
 		'setMode',
 		R(({ window, data }) => {
 			setMode(data.data.mode)
+			if (mode === 'black' || mode === 'dark') {
+				nativeTheme.themeSource = 'dark'
+				return
+			}
 			nativeTheme.themeSource = mode
 		})
 	)

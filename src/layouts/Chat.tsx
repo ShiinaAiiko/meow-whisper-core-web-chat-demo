@@ -458,7 +458,7 @@ const ChatLayout = ({ children }: RouterProps) => {
 										</div>
 									</saki-chat-layout-side-navigator>
 								</div>
-								<div slot='bottom-navigator'>
+								<div className='cl-bottom-navigator' slot='bottom-navigator'>
 									<saki-chat-layout-bottom-navigator
 										ref={bindEvent({
 											expandStatus: async (e) => {

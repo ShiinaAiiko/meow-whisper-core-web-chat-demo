@@ -138,10 +138,10 @@ let call: {
 	showSmallWindow: false,
 }
 
-type Mode = 'dark' | 'light' | 'system'
+type AppearanceMode = 'dark' | 'black' | 'light' | 'system'
 
 let appearance: {
-	mode: Mode
+	mode: AppearanceMode
 } = {
 	mode: 'system',
 }
@@ -409,55 +409,55 @@ export const configSlice = createSlice({
 		},
 		setIsConnectionError: (
 			state,
-			params: ActionParams<typeof initialState['isConnectionError']>
+			params: ActionParams<(typeof initialState)['isConnectionError']>
 		) => {
 			state.isConnectionError = params.payload
 		},
 		setModalGroupId: (
 			state,
-			params: ActionParams<typeof initialState['modal']['groupId']>
+			params: ActionParams<(typeof initialState)['modal']['groupId']>
 		) => {
 			state.modal.groupId = params.payload
 		},
 		setModalUserId: (
 			state,
-			params: ActionParams<typeof initialState['modal']['userId']>
+			params: ActionParams<(typeof initialState)['modal']['userId']>
 		) => {
 			state.modal.userId = params.payload
 		},
 		setCount: (
 			state,
 			params: ActionParams<{
-				type: keyof typeof initialState['count']
+				type: keyof (typeof initialState)['count']
 				value: number
 			}>
 		) => {
 			state.count[params.payload.type] = params.payload.value
 		},
-		setInApp: (state, params: ActionParams<typeof initialState['inApp']>) => {
+		setInApp: (state, params: ActionParams<(typeof initialState)['inApp']>) => {
 			state.inApp = params.payload
 		},
 		setNotificationEnable: (
 			state,
-			params: ActionParams<typeof initialState['notification']['enable']>
+			params: ActionParams<(typeof initialState)['notification']['enable']>
 		) => {
 			state.notification.enable = params.payload
 		},
 		setNotificationLeval: (
 			state,
-			params: ActionParams<typeof initialState['notification']['leval']>
+			params: ActionParams<(typeof initialState)['notification']['leval']>
 		) => {
 			state.notification.leval = params.payload
 		},
 		setNotificationSound: (
 			state,
-			params: ActionParams<typeof initialState['notification']['sound']>
+			params: ActionParams<(typeof initialState)['notification']['sound']>
 		) => {
 			state.notification.sound = params.payload
 		},
 		setNotificationCallSound: (
 			state,
-			params: ActionParams<typeof initialState['notification']['callSound']>
+			params: ActionParams<(typeof initialState)['notification']['callSound']>
 		) => {
 			state.notification.callSound = params.payload
 			storage.global.setSync(
@@ -467,15 +467,20 @@ export const configSlice = createSlice({
 		},
 		setAppearanceMode: (
 			state,
-			params: ActionParams<typeof initialState['appearance']['mode']>
+			params: ActionParams<(typeof initialState)['appearance']['mode']>
 		) => {
 			state.appearance.mode = params.payload
-			document.body.classList.remove('system-mode', 'dark-mode', 'light-mode')
+			document.body.classList.remove(
+				'system-mode',
+				'dark-mode',
+				'black-mode',
+				'light-mode'
+			)
 			document.body.classList.add(state.appearance.mode + '-mode')
 
 			storage.global.setSync('appearance-mode', params.payload)
 		},
-		setDev: (state, params: ActionParams<typeof initialState['dev']>) => {
+		setDev: (state, params: ActionParams<(typeof initialState)['dev']>) => {
 			state.dev = params.payload
 		},
 	},

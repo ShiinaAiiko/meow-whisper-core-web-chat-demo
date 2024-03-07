@@ -147,6 +147,7 @@ const resources = {
 
 			light: '浅色模式',
 			dark: '暗黑模式',
+			black: '黑色模式',
 			system: '随系统变化',
 
 			call: '通话',
@@ -300,6 +301,7 @@ const resources = {
 
 			light: '淺色模式',
 			dark: '暗黑模式',
+			black: '黑色模式',
 			system: '隨系統變化',
 
 			call: '通話',
@@ -456,6 +458,7 @@ const resources = {
 
 			light: 'Light',
 			dark: 'Dark',
+			black: 'Black',
 			system: 'Use system setting',
 
 			call: 'Call',

@@ -8,7 +8,7 @@
 	"homepage": ".",
 	"scripts": {
 		"el:dev": "nodemon --exec electron ./dist/main.js",
-		"el:tsc": "rm -rf ./dist/ && tsc",
+		"el:tsc": "rm -rf ./dist/ && tsc --watch",
 		"icon": "electron-icon-builder --input=./IMG_20201129_011142.jpg --output=./logo --flatten",
 		"el:build-linux": "electron-builder --linux --x64",
 		"el:build-win": "electron-builder --win --x64",

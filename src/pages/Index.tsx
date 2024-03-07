@@ -204,7 +204,7 @@ const ChatPage = ({ children }: RouterProps) => {
 												})
 												setDialogContextMenuIndex(i)
 											},
-										})}
+                    })}
 										context-menu-active={dialogContextMenuIndex === i}
 										selected={v.roomId === searchParams.get('roomId')}
 										avatar-text={!info.avatar ? info.name?.toUpperCase() : ''}

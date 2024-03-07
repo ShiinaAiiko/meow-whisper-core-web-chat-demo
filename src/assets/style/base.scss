@@ -208,18 +208,55 @@ button.aiiko {
 
 	filter: gray;
 }
-.dark-mode {
-	filter: invert(1) hue-rotate(180deg);
-	// mix-blend-mode:difference;
-	// backdrop-filter:invert(1)
-}
 .light-mode {
+	// color-scheme: light;
+}
+.black-mode {
+	filter: invert(1) hue-rotate(180deg);
+	overflow: hidden;
+	img,
+	saki-images,
+	saki-avatar .avatar-word,
+	saki-button[disabled-dark='true'],
+	.disabled-dark {
+		filter: invert(1) hue-rotate(180deg);
+	}
+}
+.dark-mode {
+	filter: contrast(0.96) brightness(0.9) invert(1) hue-rotate(180deg);
+	overflow: hidden;
+	img,
+	saki-images,
+	saki-avatar .avatar-word,
+	saki-button[disabled-dark='true'],
+	.disabled-dark {
+		filter: contrast(1.1) brightness(1) invert(1) hue-rotate(180deg);
+	}
+}
+.black-mode,
+.dark-mode {
+	// color-scheme: dark;
+	.model-bg {
+		background-color: rgba(255, 255, 255, 0.6);
+	}
 }
 .system-mode {
 	@media (prefers-color-scheme: dark) {
 		/* 操作系统及浏览器支持且用户开启了 Dark Mode */
-		body {
-			filter: invert(1) hue-rotate(180deg);
+		// color-scheme: dark;
+		filter: contrast(0.96) brightness(0.9) invert(1) hue-rotate(180deg);
+		overflow: hidden;
+		// transition: filter 0.3s;
+		img,
+		saki-images,
+    saki-avatar .avatar-word,
+		saki-button[disabled-dark='true'],
+		.disabled-dark {
+			filter: contrast(1.1) brightness(1) invert(1) hue-rotate(180deg);
+			// opacity: 0.8;
+		}
+		.model-bg {
+			background-color: rgba(255, 255, 255, 0.6);
 		}
 	}
 }
@@ -236,9 +273,9 @@ button.aiiko {
 // }
 
 .copytext {
-  cursor: pointer;
-  &:hover {
-    color: var(--saki-default-color);
-    text-decoration: underline;
-  }
+	cursor: pointer;
+	&:hover {
+		color: var(--saki-default-color);
+		text-decoration: underline;
+	}
 }

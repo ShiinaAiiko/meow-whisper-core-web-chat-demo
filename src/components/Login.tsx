@@ -103,7 +103,9 @@ const LoginComponent = () => {
 						style={{
 							flex: 1,
 						}}
+            class="disabled-dark"
 						language={config.language}
+            appearance={config.appearance.mode}
 						app-id={sakisso.appId}
 						app-name='Meow-Whisper-Core'
 						url={sakisso.clientUrl + '/login'}

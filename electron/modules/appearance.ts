@@ -1,8 +1,10 @@
 import { BrowserWindow, ipcMain, nativeTheme } from 'electron'
 import { systemConfig } from '../config'
 
-export let mode: 'system' | 'light' | 'dark' = 'light'
-export const setMode = async (m: 'system' | 'light' | 'dark') => {
+type AppearanceMode = 'dark' | 'black' | 'light' | 'system'
+
+export let mode: AppearanceMode = 'light'
+export const setMode = async (m: AppearanceMode) => {
 	mode = m
 	await systemConfig.set('mode', m)
 }

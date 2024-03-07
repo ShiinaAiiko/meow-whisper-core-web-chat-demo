@@ -617,7 +617,10 @@ const Account = ({ show }: { show: boolean }) => {
 								disable-header
 								style={{
 									flex: '1',
-								}}
+                }}
+                class="disabled-dark"
+                language={config.language}
+                appearance={config.appearance.mode}
 								app-id={sakisso.appId}
 								// url={"https://aiiko.club"}
 								url={sakisso.clientUrl + '/profile'}
@@ -730,6 +733,9 @@ const Appearance = ({ show }: { show: boolean }) => {
 						</saki-checkbox-item>
 						<saki-checkbox-item padding='14px 0' value='dark'>
 							{t('dark')}
+						</saki-checkbox-item>
+						<saki-checkbox-item padding='14px 0' value='black'>
+							{t('black')}
 						</saki-checkbox-item>
 						<saki-checkbox-item padding='14px 0' value='system'>
 							{t('system')}

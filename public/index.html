@@ -46,3 +46,14 @@
 </body>
 
 </html>
+<script>
+	const appearanceMode = localStorage.getItem('appearanceMode') || 'system'
+	document.body.classList.remove(
+		'system-mode',
+		'dark-mode',
+		'black-mode',
+		'light-mode'
+	)
+
+	document.body.classList.add(appearanceMode + '-mode')
+</script>
