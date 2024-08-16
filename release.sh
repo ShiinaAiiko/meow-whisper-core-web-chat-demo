@@ -10,7 +10,7 @@ webConfigFilePath="config.pro.web.json"
 electronConfigFilePath="config.pro.electron.json"
 registryUrl="https://registry.npmmirror.com/"
 DIR=$(cd $(dirname $0) && pwd)
-allowMethods=("unzip zip dockerlogs el:icon el:install el:run el:build push run protos stop npmconfig install gitpull dockerremove start logs")
+allowMethods=("protosinit download:saki-ui unzip zip dockerlogs el:icon el:install el:run el:build push run protos stop npmconfig install gitpull dockerremove start logs")
 
 # yarn --registry https://registry.npmmirror.com/
 #  yarn add @nyanyajs/utils @saki-ui/core
@@ -114,6 +114,16 @@ protos() {
   echo "-> 编译Protobuf成功"
 }
 
+protosinit() {
+  yarn add -D semver@^7.1.2 \
+    estraverse@^5.1.0 \
+    escodegen@^1.13.0 \
+    espree@^7.0.0 \
+    uglify-js@^3.7.7 \
+    tmp@^0.2.0 \
+    --registry https://registry.npmmirror.com/
+}
+
 logs() {
   docker logs -f $name
 }
@@ -196,7 +206,7 @@ el:install() {
 }
 
 download:saki-ui() {
-  wget https://saki-ui.aiiko.club/packages/saki-ui-v1.0.0.tgz -O saki-ui.tgz
+  wget https://saki-ui.aiiko.club/packages/saki-ui-v1.0.1.tgz -O saki-ui.tgz
   tar zxvf ./saki-ui.tgz -C ./build
   rm -rf ./saki-ui*
 }

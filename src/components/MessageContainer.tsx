@@ -346,8 +346,9 @@ const MessageContainerComponent = ({
 		let m = emojiToText(messageRichText)
 		// clear()
 		setSeding(true)
-		setShowGoBottomButton(false)
-		messageMainScrollEl.current?.scrollTo('bottom')
+    setShowGoBottomButton(false)
+    console.log("messageMainScrollEl.current",messageMainScrollEl.current)
+		messageMainScrollEl.current?.scrollto('bottom')
 		if (editMessage?.id) {
 			dispatch(
 				methods.messages.editMessage({
@@ -1059,7 +1060,7 @@ const MessageContainerComponent = ({
 								<saki-button
 									ref={bindEvent({
 										tap: () => {
-											messageMainScrollEl.current?.scrollTo('bottom')
+											messageMainScrollEl.current?.scrollto('bottom')
 										},
 									})}
 									margin='0 4px 0 0 '

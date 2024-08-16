@@ -1,4 +1,4 @@
-FROM node:18.17.1 as BUILD_IMAGE
+FROM node:18.19.1 as BUILD_IMAGE
 
 WORKDIR /app
 
@@ -19,11 +19,9 @@ RUN \
   cp -r ./config.pro.temp.json ./src/config.temp.json && \
   yarn protos && \
   yarn build && \
-  wget https://saki-ui.aiiko.club/packages/saki-ui-v1.0.0.tgz -O saki-ui.tgz && \
-  tar zxvf ./saki-ui.tgz -C ./build && \
-  rm -rf ./saki-ui* 
+  ./release.sh download:saki-ui
 
-FROM node:18.17.1-alpine3.18
+FROM node:18.19.1-alpine3.19
 
 ENV CLIENT_ENV=production
 
@@ -34,10 +32,11 @@ COPY --from=BUILD_IMAGE \
   /dist
 
 RUN \ 
-  yarn global add spa-http-server --registry https://registry.npmmirror.com/ && \
+  # yarn global add spa-http-server --registry https://registry.npmmirror.com/ && \
   tar cvzf /build.tgz  -C /dist .
 
 EXPOSE 15311
 
-CMD ["http-server","./dist","--cors","--silent","-p","15311","--push-state"]
+CMD ["pwd"]
+# CMD ["http-server","./dist","--cors","--silent","-p","15311","--push-state"]
 
